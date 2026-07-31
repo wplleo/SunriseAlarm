@@ -1,0 +1,8 @@
+{
+  "string": [
+    { "name": "module_desc", "value": "晨光闹钟主模块" },
+    { "name": "EntryAbility_label", "value": "晨光闹钟" },
+    { "name": "location_permission_reason", "value": "用于获取当前位置以计算日出日落时间" },
+    { "name": "reminder_permission_reason", "value": "用于发布日出日落系统提醒（闹钟）" }
+  ]
+}

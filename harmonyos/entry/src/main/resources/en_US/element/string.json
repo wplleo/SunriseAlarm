@@ -1,0 +1,26 @@
+{
+  "string": [
+    { "name": "home_title", "value": "Alarms" },
+    { "name": "add_alarm", "value": "Add Alarm" },
+    { "name": "location_title", "value": "Location" },
+    { "name": "settings_title", "value": "Settings" },
+    { "name": "sunrise", "value": "Sunrise" },
+    { "name": "sunset", "value": "Sunset" },
+    { "name": "normal_alarm", "value": "Normal Alarm" },
+    { "name": "search_location", "value": "Search city" },
+    { "name": "use_current_location", "value": "Use current location" },
+    { "name": "no_alarm", "value": "No alarms yet. Tap + to add." },
+    { "name": "alarm_type_sunrise", "value": "Sunrise Alarm" },
+    { "name": "alarm_type_sunset", "value": "Sunset Alarm" },
+    { "name": "alarm_type_normal", "value": "Normal Alarm" },
+    { "name": "offset_label", "value": "Offset (minutes)" },
+    { "name": "save", "value": "Save" },
+    { "name": "cancel", "value": "Cancel" },
+    { "name": "enable_location_hint", "value": "Please enable location permission in settings" },
+    { "name": "manual_location", "value": "Manual lat/lng" },
+    { "name": "latitude", "value": "Latitude" },
+    { "name": "longitude", "value": "Longitude" },
+    { "name": "theme_dark", "value": "Dark Warm Theme" },
+    { "name": "daylight", "value": "Daylight" }
+  ]
+}

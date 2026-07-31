@@ -1,0 +1,6 @@
+# HarmonyOS SDK 路径（请填写你本机实际路径，并把本文件复制为 local.properties）
+# DevEco Studio 默认安装位置示例：
+#   Windows: C:/Users/你的用户名/AppData/Local/Huawei/Sdk
+#   macOS:   /Users/你的用户名/Library/Huawei/Sdk
+#   Linux:   /home/你的用户名/Huawei/Sdk
+sdk.dir=C:/Users/你的用户名/AppData/Local/Huawei/Sdk

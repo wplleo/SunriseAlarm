@@ -1,0 +1,27 @@
+# HarmonyOS / DevEco build output
+/build/
+/entry/build/
+/.hvigor/
+/.cxx/
+**/build/
+**/.preview/
+
+# ohpm dependencies
+/oh_modules/
+/entry/oh_modules/
+
+# IDE
+/.idea/
+/.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# local signing / SDK path (DO NOT commit)
+local.properties
+**/signing/
+
+# build output / release artifacts (distribute via GitHub Releases, not repo)
+/build-output/

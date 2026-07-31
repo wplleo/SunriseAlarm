@@ -1,0 +1,2 @@
+# Obfuscation rules - currently disabled in build-profile.json5
+# Add rules here if enabling obfuscation later

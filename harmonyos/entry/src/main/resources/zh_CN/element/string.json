@@ -1,0 +1,26 @@
+{
+  "string": [
+    { "name": "home_title", "value": "闹钟" },
+    { "name": "add_alarm", "value": "新增闹钟" },
+    { "name": "location_title", "value": "位置" },
+    { "name": "settings_title", "value": "设置" },
+    { "name": "sunrise", "value": "日出" },
+    { "name": "sunset", "value": "日落" },
+    { "name": "normal_alarm", "value": "普通闹钟" },
+    { "name": "search_location", "value": "搜索城市" },
+    { "name": "use_current_location", "value": "使用当前位置" },
+    { "name": "no_alarm", "value": "还没有闹钟，点右下角添加" },
+    { "name": "alarm_type_sunrise", "value": "日出闹钟" },
+    { "name": "alarm_type_sunset", "value": "日落闹钟" },
+    { "name": "alarm_type_normal", "value": "普通闹钟" },
+    { "name": "offset_label", "value": "提前/延后（分钟）" },
+    { "name": "save", "value": "保存" },
+    { "name": "cancel", "value": "取消" },
+    { "name": "enable_location_hint", "value": "请在系统设置中开启定位权限" },
+    { "name": "manual_location", "value": "手动输入经纬度" },
+    { "name": "latitude", "value": "纬度" },
+    { "name": "longitude", "value": "经度" },
+    { "name": "theme_dark", "value": "暗色暖橙主题" },
+    { "name": "daylight", "value": "白昼时长" }
+  ]
+}

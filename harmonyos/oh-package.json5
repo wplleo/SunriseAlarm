@@ -1,0 +1,8 @@
+{
+  "modelVersion": "5.0.0",
+  "name": "sunrisealarmohos",
+  "version": "1.0.0",
+  "description": "晨光闹钟 - HarmonyOS NEXT 版 (ArkTS)",
+  "dependencies": {},
+  "devDependencies": {}
+}

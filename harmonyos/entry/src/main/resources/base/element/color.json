@@ -1,0 +1,11 @@
+{
+  "color": [
+    { "name": "start_window_background", "value": "#161618" },
+    { "name": "theme_background", "value": "#161618" },
+    { "name": "theme_surface", "value": "#1E1E20" },
+    { "name": "theme_primary", "value": "#FF8C42" },
+    { "name": "theme_on_primary", "value": "#161618" },
+    { "name": "theme_text_primary", "value": "#EDEDED" },
+    { "name": "theme_text_secondary", "value": "#9A9A9A" }
+  ]
+}
