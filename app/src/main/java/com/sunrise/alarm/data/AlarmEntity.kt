@@ -38,6 +38,8 @@ data class AlarmEntity(
      * dayOfWeek: 1=周一 ... 7=周日
      */
     fun isEnabledOnDay(dayOfWeek: Int): Boolean {
+        // repeatDays == 0 表示"仅一次"，应在今天触发（调度循环会自行判断时间是否已过）
+        if (repeatDays == 0) return true
         val bit = 1 shl (dayOfWeek - 1)
         return (repeatDays and bit) != 0
     }

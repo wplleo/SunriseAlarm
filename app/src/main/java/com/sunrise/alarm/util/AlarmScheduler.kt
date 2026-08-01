@@ -45,31 +45,24 @@ class AlarmScheduler(private val context: Context) {
         )
 
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                if (alarmManager.canScheduleExactAlarms()) {
-                    alarmManager.setExactAndAllowWhileIdle(
-                        AlarmManager.RTC_WAKEUP,
-                        triggerTime,
-                        pendingIntent
-                    )
-                } else {
-                    // 降级到非精确闹钟
-                    alarmManager.setAndAllowWhileIdle(
-                        AlarmManager.RTC_WAKEUP,
-                        triggerTime,
-                        pendingIntent
-                    )
-                }
-            } else {
-                alarmManager.setExactAndAllowWhileIdle(
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                triggerTime,
+                pendingIntent
+            )
+            Log.i(TAG, "闹钟已调度: id=${alarm.id}, 触发时间=${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(triggerTime))}")
+        } catch (e: SecurityException) {
+            // Android 12+ 无精确闹钟权限时降级
+            Log.w(TAG, "无精确闹钟权限，降级到非精确闹钟 (闹钟可能延迟): id=${alarm.id}")
+            try {
+                alarmManager.setAndAllowWhileIdle(
                     AlarmManager.RTC_WAKEUP,
                     triggerTime,
                     pendingIntent
                 )
+            } catch (e2: Exception) {
+                Log.e(TAG, "调度闹钟彻底失败", e2)
             }
-            Log.i(TAG, "闹钟已调度: id=${alarm.id}, 触发时间=${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(triggerTime))}")
-        } catch (e: SecurityException) {
-            Log.e(TAG, "调度闹钟失败", e)
         }
     }
 

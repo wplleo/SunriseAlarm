@@ -15,6 +15,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.PowerManager
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -37,6 +38,7 @@ class AlarmRingService : Service() {
 
     private val handler = Handler(Looper.getMainLooper())
     private var autoDismissRunnable: Runnable? = null
+    private var wakeLock: PowerManager.WakeLock? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -71,6 +73,14 @@ class AlarmRingService : Service() {
             startForeground(NOTIF_ID, notification)
         }
 
+        // 获取 WakeLock 防止设备在响铃期间休眠
+        val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+        wakeLock = pm.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            "SunriseAlarm:Ringing"
+        )
+        wakeLock?.acquire(15 * 60 * 1000L) // 最长 15 分钟
+
         startRinging()
 
         // 15分钟后自动关闭
@@ -80,7 +90,7 @@ class AlarmRingService : Service() {
         }
         handler.postDelayed(autoDismissRunnable!!, 15 * 60 * 1000L)
 
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     private fun startRinging() {
@@ -204,7 +214,7 @@ class AlarmRingService : Service() {
             putExtra(AlarmScheduler.EXTRA_SOUND_URI, soundUri)
         }
         val pendingIntent = PendingIntent.getBroadcast(
-            this, (alarmId + 10000).toInt(), snoozeIntent,
+            this, -(alarmId + 1).toInt(), snoozeIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val triggerTime = System.currentTimeMillis() + 5 * 60 * 1000L
@@ -277,6 +287,10 @@ class AlarmRingService : Service() {
 
     override fun onDestroy() {
         stopRinging()
+        wakeLock?.let {
+            if (it.isHeld) it.release()
+        }
+        wakeLock = null
         super.onDestroy()
     }
 
