@@ -25,20 +25,24 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace 2>&1 | tee build-log.txt
+        id: build
+        run: |
+          ./gradlew assembleDebug --stacktrace 2>&1 | tee build-log.txt
+          echo "BUILD_EXIT_CODE=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
         env:
           ANDROID_HOME: /usr/local/lib/android/sdk
         continue-on-error: true
 
-      - name: Upload build log
+      - name: Output build log to summary
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-log
-          path: build-log.txt
+        run: |
+          echo "## Build Log" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat build-log.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Upload APK
-        if: success()
+        if: steps.build.outputs.BUILD_EXIT_CODE == '0'
         uses: actions/upload-artifact@v4
         with:
           name: SunriseAlarm-debug
