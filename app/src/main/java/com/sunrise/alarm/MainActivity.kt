@@ -83,7 +83,7 @@ class MainActivity : ComponentActivity() {
             if (!alarmManager.canScheduleExactAlarms()) {
                 Toast.makeText(
                     this,
-                    "请开启"精确闹钟"权限，否则闹钟可能延迟或不响",
+                    "请开启\"精确闹钟\"权限，否则闹钟可能延迟或不响",
                     Toast.LENGTH_LONG
                 ).show()
                 try {
