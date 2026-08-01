@@ -3,14 +3,18 @@ package com.sunrise.alarm.ui.addalarm
 import android.content.ActivityNotFoundException
 import android.content.ContentResolver
 import android.content.Intent
+import android.media.AudioManager
 import android.media.RingtoneManager
+import android.media.ToneGenerator
 import android.net.Uri
 import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,6 +29,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,7 +38,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.RingVolume
 import androidx.compose.material3.Icon
@@ -40,23 +45,30 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.sunrise.alarm.data.AlarmType
 import com.sunrise.alarm.ui.theme.AppColors
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Composable
 fun AddAlarmScreen(
@@ -250,15 +262,13 @@ fun AddAlarmScreen(
                 .padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            TimePicker(
+            WheelTimePicker(
                 hour = state.hour,
                 minute = state.minute,
                 enabled = state.type == AlarmType.REGULAR,
                 colors = colors,
-                onHourUp = { viewModel.setHour(state.hour + 1) },
-                onHourDown = { viewModel.setHour(state.hour - 1) },
-                onMinUp = { viewModel.setMinute(state.minute + 1) },
-                onMinDown = { viewModel.setMinute(state.minute - 1) }
+                onHourChange = { viewModel.setHour(it) },
+                onMinuteChange = { viewModel.setMinute(it) }
             )
 
             SectionLabel("闹钟类型", colors)
@@ -393,71 +403,166 @@ private fun queryFileName(resolver: ContentResolver, uri: Uri): String? {
     }
 }
 
-// ---- 子组件 ----
+// ---- 滚轮式时间选择器 ----
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun TimePicker(
+private fun WheelTimePicker(
     hour: Int,
     minute: Int,
     enabled: Boolean,
     colors: com.sunrise.alarm.ui.theme.ExtendedColors,
-    onHourUp: () -> Unit,
-    onHourDown: () -> Unit,
-    onMinUp: () -> Unit,
-    onMinDown: () -> Unit
+    onHourChange: (Int) -> Unit,
+    onMinuteChange: (Int) -> Unit
 ) {
-    Row(
+    val haptic = LocalHapticFeedback.current
+    val toneGen = remember { ToneGenerator(AudioManager.STREAM_NOTIFICATION, 25) }
+
+    // 选中指示线颜色
+    val indicatorColor = colors.orange
+
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
             .background(colors.bgCard)
-            .padding(24.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
+            .padding(vertical = 24.dp)
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            ArrowButton(Icons.Default.KeyboardArrowUp, colors, onHourUp, enabled)
+        // 中间选中指示线
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.Center)
+                .height(52.dp)
+                .background(indicatorColor.copy(alpha = 0.08f))
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // 小时滚轮
+            WheelColumn(
+                value = hour,
+                range = 0..23,
+                format = { "%02d".format(it) },
+                enabled = enabled,
+                colors = colors,
+                toneGen = toneGen,
+                haptic = haptic,
+                onValueChange = onHourChange
+            )
+
+            Spacer(Modifier.width(20.dp))
             Text(
-                String.format("%02d", hour),
-                fontSize = 64.sp,
+                ":",
+                fontSize = 48.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = if (enabled) colors.textWhite else colors.textGray
             )
-            ArrowButton(Icons.Default.KeyboardArrowDown, colors, onHourDown, enabled)
-        }
-        Spacer(Modifier.width(12.dp))
-        Text(":", fontSize = 48.sp, fontWeight = FontWeight.SemiBold, color = colors.textWhite)
-        Spacer(Modifier.width(12.dp))
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            ArrowButton(Icons.Default.KeyboardArrowUp, colors, onMinUp, enabled)
-            Text(
-                String.format("%02d", minute),
-                fontSize = 64.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = if (enabled) colors.textWhite else colors.textGray
+            Spacer(Modifier.width(20.dp))
+
+            // 分钟滚轮
+            WheelColumn(
+                value = minute,
+                range = 0..59,
+                format = { "%02d".format(it) },
+                enabled = enabled,
+                colors = colors,
+                toneGen = toneGen,
+                haptic = haptic,
+                onValueChange = onMinuteChange
             )
-            ArrowButton(Icons.Default.KeyboardArrowDown, colors, onMinDown, enabled)
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ArrowButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+private fun WheelColumn(
+    value: Int,
+    range: IntRange,
+    format: (Int) -> String,
+    enabled: Boolean,
     colors: com.sunrise.alarm.ui.theme.ExtendedColors,
-    onClick: () -> Unit,
-    enabled: Boolean
+    toneGen: ToneGenerator,
+    haptic: androidx.compose.ui.hapticfeedback.HapticFeedback,
+    onValueChange: (Int) -> Unit
 ) {
-    Box(
+    val itemCount = range.count()
+    val repeatMultiplier = 500 // 重复次数实现"无限"循环
+    val totalItems = itemCount * repeatMultiplier
+    val middleBase = (repeatMultiplier / 2) * itemCount
+    val valueIndex = range.toList().indexOf(value)
+    val initialIndex = middleBase + valueIndex
+
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
+    val snapBehavior = rememberSnapFlingBehavior(lazyListState = listState)
+
+    val currentValue = remember { mutableIntStateOf(value) }
+
+    // 监听滚动停止后同步值，并播放反馈
+    LaunchedEffect(listState) {
+        snapshotFlow { !listState.isScrollInProgress }
+            .distinctUntilChanged()
+            .collect { isIdle ->
+                if (isIdle) {
+                    val centerIndex = listState.firstVisibleItemIndex + 1 // +1 因为居中对齐
+                    val newValue = range.toList()[centerIndex % itemCount]
+                    if (newValue != currentValue.intValue) {
+                        currentValue.intValue = newValue
+                        onValueChange(newValue)
+                        // 齿轮声 + 触感
+                        try { toneGen.startTone(ToneGenerator.TONE_PROP_NACK, 30) } catch (_: Exception) {}
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    }
+                }
+            }
+    }
+
+    // 选中和非选中颜色
+    val selectedColor = if (enabled) colors.textWhite else colors.textGray
+    val unselectedColor = if (enabled) colors.textGray.copy(alpha = 0.4f) else Color(0xFF3A3A3D)
+
+    val itemHeight = 52.dp
+    val itemHeightPx = with(androidx.compose.ui.platform.LocalDensity.current) { itemHeight.toPx() }
+    val visibleItems = 5
+    val centerOffset = (visibleItems / 2).toFloat() // 选中项在可见区域的位置
+
+    LazyColumn(
+        state = listState,
         modifier = Modifier
-            .size(28.dp)
-            .clickable(
-                enabled = enabled,
-                onClick = onClick
-            ),
-        contentAlignment = Alignment.Center
+            .width(80.dp)
+            .height(itemHeight * visibleItems),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = itemHeight * 2),
+        flingBehavior = snapBehavior,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        userScrollEnabled = enabled
     ) {
-        Icon(icon, contentDescription = null, tint = if (enabled) colors.textGray else Color(0xFF3A3A3D), modifier = Modifier.size(24.dp))
+        items(totalItems, key = { "wh_$it" }) { index ->
+            val actualValue = range.toList()[index % itemCount]
+            // 居中项：firstVisibleItemIndex + ceil(visibleItems/2) = firstVisibleItemIndex + 2
+            val centerIndex = listState.firstVisibleItemIndex + 2
+            val isSelected = index == centerIndex
+
+            Box(
+                modifier = Modifier
+                    .height(itemHeight)
+                    .width(80.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    format(actualValue),
+                    fontSize = if (isSelected) 36.sp else 18.sp,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                    color = if (isSelected) selectedColor else unselectedColor,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
     }
 }
 

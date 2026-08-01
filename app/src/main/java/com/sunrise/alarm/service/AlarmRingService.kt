@@ -105,7 +105,6 @@ class AlarmRingService : Service() {
     }
 
     // ---- 铃声 ----
-    private var ringtone: android.media.Ringtone? = null
     private var mediaPlayer: android.media.MediaPlayer? = null
 
     private fun playSound() {
@@ -116,44 +115,44 @@ class AlarmRingService : Service() {
                 RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
             }
 
-            // 判断是否是系统铃声 URI
-            val isSystemRingtone = uri.toString().startsWith("content://settings/") ||
-                    uri.toString().startsWith("content://media/")
-
-            if (isSystemRingtone) {
-                // 系统铃声用 Ringtone 播放
-                ringtone = RingtoneManager.getRingtone(this, uri)
-                ringtone?.audioAttributes = AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build()
-                ringtone?.play()
-            } else {
-                // 本地音乐用 MediaPlayer 播放（支持循环、更多格式）
-                mediaPlayer = android.media.MediaPlayer().apply {
+            // 统一使用 MediaPlayer 循环播放，Ringtone 不会自动循环
+            mediaPlayer = android.media.MediaPlayer().apply {
+                try {
+                    // 系统铃声 URI 也可通过 ContentResolver 打开
                     setDataSource(this@AlarmRingService, uri)
-                    setAudioAttributes(
-                        AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_ALARM)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                            .build()
-                    )
-                    isLooping = true
-                    prepare()
-                    start()
+                } catch (e: Exception) {
+                    // 某些系统铃声可能需要用 FileDescriptor 方式打开
+                    val fd = this@AlarmRingService.contentResolver.openAssetFileDescriptor(uri, "r")
+                    setDataSource(fd!!.fileDescriptor, fd.startOffset, fd.length)
+                    fd.close()
                 }
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                )
+                isLooping = true
+                prepare()
+                start()
             }
         } catch (e: Exception) {
             Log.e(TAG, "播放铃声失败", e)
             // 降级到默认闹钟铃声
             try {
                 val defaultUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-                ringtone = RingtoneManager.getRingtone(this, defaultUri)
-                ringtone?.audioAttributes = AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build()
-                ringtone?.play()
+                mediaPlayer = android.media.MediaPlayer().apply {
+                    setDataSource(this@AlarmRingService, defaultUri)
+                    setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_ALARM)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build()
+                    )
+                    isLooping = true
+                    prepare()
+                    start()
+                }
             } catch (e2: Exception) {
                 Log.e(TAG, "降级播放也失败", e2)
             }
@@ -161,8 +160,6 @@ class AlarmRingService : Service() {
     }
 
     private fun stopSound() {
-        ringtone?.stop()
-        ringtone = null
         mediaPlayer?.let {
             try {
                 if (it.isPlaying) it.stop()
