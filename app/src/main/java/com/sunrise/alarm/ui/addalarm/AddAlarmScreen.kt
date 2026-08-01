@@ -493,31 +493,42 @@ private fun WheelColumn(
     onValueChange: (Int) -> Unit
 ) {
     val itemCount = range.count()
+    val rangeList = remember(range) { range.toList() }
     val repeatMultiplier = 500 // 重复次数实现"无限"循环
     val totalItems = itemCount * repeatMultiplier
     val middleBase = (repeatMultiplier / 2) * itemCount
-    val valueIndex = range.toList().indexOf(value)
+    val valueIndex = rangeList.indexOf(value).coerceAtLeast(0)
     val initialIndex = middleBase + valueIndex
 
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
     val snapBehavior = rememberSnapFlingBehavior(lazyListState = listState)
 
+    // 当前 视口中心 对应的索引，用于高亮 + 值检测
+    val centerItemIndex = remember { mutableIntStateOf(-1) }
     val currentValue = remember { mutableIntStateOf(value) }
 
-    // 监听滚动停止后同步值，并播放反馈
+    // 监听滚动停止后同步值
     LaunchedEffect(listState) {
-        snapshotFlow { !listState.isScrollInProgress }
-            .distinctUntilChanged()
-            .collect { isIdle ->
-                if (isIdle) {
-                    val centerIndex = listState.firstVisibleItemIndex + 1 // +1 因为居中对齐
-                    val newValue = range.toList()[centerIndex % itemCount]
-                    if (newValue != currentValue.intValue) {
-                        currentValue.intValue = newValue
-                        onValueChange(newValue)
-                        // 齿轮声 + 触感
-                        try { toneGen.startTone(ToneGenerator.TONE_PROP_NACK, 30) } catch (_: Exception) {}
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        snapshotFlow {
+            // 找到视口中心最近的可见 item
+            val info = listState.layoutInfo
+            val viewportCenter = info.viewportStartOffset + info.viewportSize.height / 2
+            val centerItem = info.visibleItemsInfo
+                .minByOrNull { kotlin.math.abs(it.offset + it.size / 2 - viewportCenter) }
+            centerItem?.index
+        }.distinctUntilChanged()
+            .collect { optIndex ->
+                if (optIndex != null) {
+                    centerItemIndex.intValue = optIndex
+                    if (!listState.isScrollInProgress) {
+                        val newValue = rangeList[optIndex % itemCount]
+                        if (newValue != currentValue.intValue) {
+                            currentValue.intValue = newValue
+                            onValueChange(newValue)
+                            // 齿轮声 + 触感
+                            try { toneGen.startTone(ToneGenerator.TONE_PROP_NACK, 30) } catch (_: Exception) {}
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        }
                     }
                 }
             }
@@ -528,9 +539,7 @@ private fun WheelColumn(
     val unselectedColor = if (enabled) colors.textGray.copy(alpha = 0.4f) else Color(0xFF3A3A3D)
 
     val itemHeight = 52.dp
-    val itemHeightPx = with(androidx.compose.ui.platform.LocalDensity.current) { itemHeight.toPx() }
     val visibleItems = 5
-    val centerOffset = (visibleItems / 2).toFloat() // 选中项在可见区域的位置
 
     LazyColumn(
         state = listState,
@@ -543,10 +552,8 @@ private fun WheelColumn(
         userScrollEnabled = enabled
     ) {
         items(totalItems, key = { "wh_$it" }) { index ->
-            val actualValue = range.toList()[index % itemCount]
-            // 居中项：firstVisibleItemIndex + ceil(visibleItems/2) = firstVisibleItemIndex + 2
-            val centerIndex = listState.firstVisibleItemIndex + 2
-            val isSelected = index == centerIndex
+            val actualValue = rangeList[index % itemCount]
+            val isSelected = index == centerItemIndex.intValue
 
             Box(
                 modifier = Modifier
