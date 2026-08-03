@@ -4,8 +4,10 @@ import android.Manifest
 import android.app.AlarmManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -73,9 +75,17 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        // 每次返回 App 都检查关键权限状态
+        checkExactAlarmPermission()
+        checkBatteryOptimization()
+    }
+
     /**
-     * 检查精确闹钟权限（Android 12+ 特殊权限，不能用 checkSelfPermission）
-     * 如果没有，提示用户去系统设置开启
+     * 检查精确闹钟权限（Android 12+）
+     * 没有这个权限，setExactAndAllowWhileIdle 会失败，
+     * 回退到 setAlarmClock 或 setAndAllowWhileIdle（doze 模式下严重延迟）
      */
     private fun checkExactAlarmPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -83,15 +93,30 @@ class MainActivity : ComponentActivity() {
             if (!alarmManager.canScheduleExactAlarms()) {
                 Toast.makeText(
                     this,
-                    "请开启\"精确闹钟\"权限，否则闹钟可能延迟或不响",
+                    "⚠ 请开启"精确闹钟"权限，否则闹钟可能不响！",
                     Toast.LENGTH_LONG
                 ).show()
                 try {
                     startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM))
-                } catch (e: Exception) {
-                    // 某些设备可能不支持这个 Intent
-                }
+                } catch (_: Exception) { }
             }
+        }
+    }
+
+    /**
+     * 检查电池优化白名单
+     * 不在白名单中的应用可能在后台被系统杀死，
+     * 导致闹钟 Service 无法启动
+     */
+    private fun checkBatteryOptimization() {
+        val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+        if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+            try {
+                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+                startActivity(intent)
+            } catch (_: Exception) { }
         }
     }
 }

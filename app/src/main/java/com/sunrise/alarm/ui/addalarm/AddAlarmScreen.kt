@@ -503,11 +503,11 @@ private fun WheelColumn(
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
     val snapBehavior = rememberSnapFlingBehavior(lazyListState = listState)
 
-    // 当前 视口中心 对应的索引，用于高亮
+    // 当前视口中心的 item 索引（实时跟踪，用于高亮）
     val centerItemIndex = remember { mutableIntStateOf(-1) }
     val currentValue = remember { mutableIntStateOf(value) }
 
-    // 1. 实时跟踪视口中心 item（用于高亮）
+    // 实时跟踪视口中心 item（仅用于视觉高亮）
     LaunchedEffect(listState) {
         snapshotFlow {
             val info = listState.layoutInfo
@@ -520,12 +520,15 @@ private fun WheelColumn(
         }
     }
 
-    // 2. 滚动停止后同步值到 ViewModel
+    // 只在滚动真正停止后才同步值到 ViewModel（解决 isScrollInProgress + snapFlingBehavior 时序竞态）
     LaunchedEffect(listState) {
-        snapshotFlow { !listState.isScrollInProgress }
-            .distinctUntilChanged()
-            .collect { isIdle ->
-                if (isIdle) {
+        var wasScrolling = false
+        snapshotFlow { listState.isScrollInProgress }
+            .collect { isScrolling ->
+                // 仅当从滚动→停止过渡时计算值
+                if (!isScrolling && wasScrolling) {
+                    // 等一帧让 layout 完全落位
+                    delay(50)
                     val info = listState.layoutInfo
                     val viewportCenter = info.viewportStartOffset + info.viewportSize.height / 2
                     val centerItem = info.visibleItemsInfo.minByOrNull {
@@ -536,12 +539,12 @@ private fun WheelColumn(
                         if (newValue != currentValue.intValue) {
                             currentValue.intValue = newValue
                             onValueChange(newValue)
-                            // 齿轮声 + 触感
                             try { toneGen.startTone(ToneGenerator.TONE_PROP_NACK, 30) } catch (_: Exception) {}
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         }
                     }
                 }
+                wasScrolling = isScrolling
             }
     }
 
