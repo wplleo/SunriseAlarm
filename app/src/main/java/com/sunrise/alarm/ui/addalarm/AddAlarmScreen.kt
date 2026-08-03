@@ -503,25 +503,36 @@ private fun WheelColumn(
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
     val snapBehavior = rememberSnapFlingBehavior(lazyListState = listState)
 
-    // 当前 视口中心 对应的索引，用于高亮 + 值检测
+    // 当前 视口中心 对应的索引，用于高亮
     val centerItemIndex = remember { mutableIntStateOf(-1) }
     val currentValue = remember { mutableIntStateOf(value) }
 
-    // 监听滚动停止后同步值
+    // 1. 实时跟踪视口中心 item（用于高亮）
     LaunchedEffect(listState) {
         snapshotFlow {
-            // 找到视口中心最近的可见 item
             val info = listState.layoutInfo
             val viewportCenter = info.viewportStartOffset + info.viewportSize.height / 2
-            val centerItem = info.visibleItemsInfo
-                .minByOrNull { kotlin.math.abs(it.offset + it.size / 2 - viewportCenter) }
-            centerItem?.index
-        }.distinctUntilChanged()
-            .collect { optIndex ->
-                if (optIndex != null) {
-                    centerItemIndex.intValue = optIndex
-                    if (!listState.isScrollInProgress) {
-                        val newValue = rangeList[optIndex % itemCount]
+            info.visibleItemsInfo.minByOrNull {
+                kotlin.math.abs(it.offset + it.size / 2 - viewportCenter)
+            }?.index
+        }.distinctUntilChanged().collect { idx ->
+            if (idx != null) centerItemIndex.intValue = idx
+        }
+    }
+
+    // 2. 滚动停止后同步值到 ViewModel
+    LaunchedEffect(listState) {
+        snapshotFlow { !listState.isScrollInProgress }
+            .distinctUntilChanged()
+            .collect { isIdle ->
+                if (isIdle) {
+                    val info = listState.layoutInfo
+                    val viewportCenter = info.viewportStartOffset + info.viewportSize.height / 2
+                    val centerItem = info.visibleItemsInfo.minByOrNull {
+                        kotlin.math.abs(it.offset + it.size / 2 - viewportCenter)
+                    }
+                    centerItem?.let { item ->
+                        val newValue = rangeList[item.index % itemCount]
                         if (newValue != currentValue.intValue) {
                             currentValue.intValue = newValue
                             onValueChange(newValue)
