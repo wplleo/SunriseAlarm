@@ -77,8 +77,10 @@ class AlarmReceiver : BroadcastReceiver() {
             }
 
             AlarmScheduler.ACTION_DISMISS -> {
+                val alarmId = intent.getLongExtra(AlarmScheduler.EXTRA_ALARM_ID, -1)
                 val stopIntent = Intent(context, AlarmRingService::class.java).apply {
                     action = AlarmRingService.ACTION_STOP
+                    putExtra(AlarmScheduler.EXTRA_ALARM_ID, alarmId)
                 }
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     context.startForegroundService(stopIntent)
@@ -88,8 +90,16 @@ class AlarmReceiver : BroadcastReceiver() {
             }
 
             AlarmScheduler.ACTION_SNOOZE -> {
+                val alarmId = intent.getLongExtra(AlarmScheduler.EXTRA_ALARM_ID, -1)
+                val label = intent.getStringExtra(AlarmScheduler.EXTRA_LABEL) ?: "闹钟"
+                val vibrate = intent.getBooleanExtra(AlarmScheduler.EXTRA_VIBRATE, true)
+                val soundUri = intent.getStringExtra(AlarmScheduler.EXTRA_SOUND_URI) ?: ""
                 val snoozeIntent = Intent(context, AlarmRingService::class.java).apply {
                     action = AlarmRingService.ACTION_SNOOZE
+                    putExtra(AlarmScheduler.EXTRA_ALARM_ID, alarmId)
+                    putExtra(AlarmScheduler.EXTRA_LABEL, label)
+                    putExtra(AlarmScheduler.EXTRA_VIBRATE, vibrate)
+                    putExtra(AlarmScheduler.EXTRA_SOUND_URI, soundUri)
                 }
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     context.startForegroundService(snoozeIntent)

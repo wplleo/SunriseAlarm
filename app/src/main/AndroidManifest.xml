@@ -46,6 +46,15 @@
             </intent-filter>
         </activity>
 
+        <!-- 闹钟响铃全屏界面（锁屏上方显示） -->
+        <activity
+            android:name=".ui.ring.AlarmRingActivity"
+            android:exported="false"
+            android:theme="@style/Theme.SunriseAlarm"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:launchMode="singleInstance" />
+
         <!-- 闹钟触发广播接收器 -->
         <receiver
             android:name=".service.AlarmReceiver"

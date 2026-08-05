@@ -21,8 +21,8 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import com.sunrise.alarm.MainActivity
 import com.sunrise.alarm.R
+import com.sunrise.alarm.ui.ring.AlarmRingActivity
 import com.sunrise.alarm.util.AlarmScheduler
 
 /**
@@ -46,6 +46,12 @@ class AlarmRingService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // 总是从 Intent 读取最新参数（支持 Service 被杀后重建场景）
+        alarmId = intent?.getLongExtra(AlarmScheduler.EXTRA_ALARM_ID, -1) ?: alarmId
+        label = intent?.getStringExtra(AlarmScheduler.EXTRA_LABEL) ?: label
+        vibrate = intent?.getBooleanExtra(AlarmScheduler.EXTRA_VIBRATE, true) ?: vibrate
+        soundUri = intent?.getStringExtra(AlarmScheduler.EXTRA_SOUND_URI) ?: soundUri
+
         when (intent?.action) {
             ACTION_STOP -> {
                 stopRinging()
@@ -59,11 +65,6 @@ class AlarmRingService : Service() {
                 return START_NOT_STICKY
             }
         }
-
-        alarmId = intent?.getLongExtra(AlarmScheduler.EXTRA_ALARM_ID, -1) ?: -1
-        label = intent?.getStringExtra(AlarmScheduler.EXTRA_LABEL) ?: "闹钟"
-        vibrate = intent?.getBooleanExtra(AlarmScheduler.EXTRA_VIBRATE, true) ?: true
-        soundUri = intent?.getStringExtra(AlarmScheduler.EXTRA_SOUND_URI) ?: ""
 
         val notification = buildNotification()
 
@@ -226,8 +227,12 @@ class AlarmRingService : Service() {
 
     // ---- 通知 ----
     private fun buildNotification(): Notification {
-        val contentIntent = Intent(this, MainActivity::class.java).apply {
+        val contentIntent = Intent(this, AlarmRingActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            putExtra(AlarmScheduler.EXTRA_ALARM_ID, alarmId)
+            putExtra(AlarmScheduler.EXTRA_LABEL, label)
+            putExtra(AlarmScheduler.EXTRA_VIBRATE, vibrate)
+            putExtra(AlarmScheduler.EXTRA_SOUND_URI, soundUri)
         }
         val contentPI = PendingIntent.getActivity(
             this, 0, contentIntent,
@@ -236,6 +241,10 @@ class AlarmRingService : Service() {
 
         val dismissIntent = Intent(this, AlarmReceiver::class.java).apply {
             action = AlarmScheduler.ACTION_DISMISS
+            putExtra(AlarmScheduler.EXTRA_ALARM_ID, alarmId)
+            putExtra(AlarmScheduler.EXTRA_LABEL, label)
+            putExtra(AlarmScheduler.EXTRA_VIBRATE, vibrate)
+            putExtra(AlarmScheduler.EXTRA_SOUND_URI, soundUri)
         }
         val dismissPI = PendingIntent.getBroadcast(
             this, 1, dismissIntent,
@@ -244,6 +253,10 @@ class AlarmRingService : Service() {
 
         val snoozeIntent = Intent(this, AlarmReceiver::class.java).apply {
             action = AlarmScheduler.ACTION_SNOOZE
+            putExtra(AlarmScheduler.EXTRA_ALARM_ID, alarmId)
+            putExtra(AlarmScheduler.EXTRA_LABEL, label)
+            putExtra(AlarmScheduler.EXTRA_VIBRATE, vibrate)
+            putExtra(AlarmScheduler.EXTRA_SOUND_URI, soundUri)
         }
         val snoozePI = PendingIntent.getBroadcast(
             this, 2, snoozeIntent,
