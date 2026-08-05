@@ -4,35 +4,29 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- 太阳 -->
+
+    <!-- 太阳上半圆（从地平线升起） -->
     <path
         android:fillColor="#FF8C42"
-        android:pathData="M54,30 m-16,0 a16,16 0 1,0 32,0 a16,16 0 1,0 -32,0" />
-    <!-- 光线 -->
+        android:pathData="M32,56 A22,22 0 0 1 76,56 Z" />
+
+    <!-- 光线 - 正上方 -->
     <path
         android:fillColor="#FF8C42"
-        android:pathData="M54,8 L57,16 L51,16 Z" />
+        android:pathData="M54,16 L59,30 L49,30 Z" />
+
+    <!-- 光线 - 左上 -->
     <path
         android:fillColor="#FF8C42"
-        android:pathData="M76,16 L74,24 L70,20 Z" />
+        android:pathData="M31,30 L38,37 L30,40 Z" />
+
+    <!-- 光线 - 右上 -->
     <path
         android:fillColor="#FF8C42"
-        android:pathData="M32,16 L38,20 L34,24 Z" />
-    <path
-        android:fillColor="#FF8C42"
-        android:pathData="M88,38 L80,41 L80,35 Z" />
-    <path
-        android:fillColor="#FF8C42"
-        android:pathData="M20,38 L28,35 L28,41 Z" />
+        android:pathData="M77,30 L78,40 L70,37 Z" />
+
     <!-- 地平线 -->
     <path
         android:fillColor="#FF8C42"
-        android:pathData="M24,64 L84,64 L84,68 L24,68 Z" />
-    <!-- 闹钟脚 -->
-    <path
-        android:fillColor="#FF8C42"
-        android:pathData="M28,70 L32,80 L28,80 Z" />
-    <path
-        android:fillColor="#FF8C42"
-        android:pathData="M80,70 L76,80 L80,80 Z" />
+        android:pathData="M22,56 L86,56 L86,60 L22,60 Z" />
 </vector>

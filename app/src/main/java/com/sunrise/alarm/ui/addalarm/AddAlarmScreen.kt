@@ -549,6 +549,23 @@ private fun WheelColumn(
             }
     }
 
+    // 编辑模式：ViewModel 异步加载数据后 value 会变化，此时需滚动到正确位置
+    LaunchedEffect(value) {
+        if (!listState.isScrollInProgress) {
+            val info = listState.layoutInfo
+            val viewportCenter = info.viewportStartOffset + info.viewportSize.height / 2
+            val centerItem = info.visibleItemsInfo.minByOrNull {
+                kotlin.math.abs(it.offset + it.size / 2 - viewportCenter)
+            }
+            val currentCenterValue = centerItem?.let { rangeList[it.index % itemCount] } ?: -1
+            if (currentCenterValue != value) {
+                val targetIndex = middleBase + rangeList.indexOf(value).coerceAtLeast(0)
+                listState.scrollToItem(targetIndex)
+                currentValue.intValue = value
+            }
+        }
+    }
+
     // 选中和非选中颜色
     val selectedColor = if (enabled) colors.textWhite else colors.textGray
     val unselectedColor = if (enabled) colors.textGray.copy(alpha = 0.4f) else Color(0xFF3A3A3D)
