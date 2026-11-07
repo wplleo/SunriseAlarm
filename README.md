@@ -1,6 +1,13 @@
 # 晨光闹钟 (SunriseAlarm)
 
-基于日出日落时间的智能闹钟 Android 应用。
+基于 NOAA 天文算法离线计算日出日落的智能闹钟。**本仓库同时收录两个平台的实现**：
+
+| 平台 | 目录 | 说明 |
+|------|------|------|
+| Android | 仓库根目录 | Kotlin / Jetpack Compose，见下文 |
+| HarmonyOS | [`harmonyos/`](./harmonyos/) | ArkTS / ArkUI，手机 + 平板 + 智能手表（WATCH 5） |
+
+以下为 **Android 版**文档。
 
 ## 功能
 
@@ -107,3 +114,11 @@ gradle wrapper
 设计稿地址：https://ardot.tencent.com/file/708996051042477
 
 主题色：暗色背景 `#161618`，暖橙强调色 `#FF8C42`，日出日落渐变。
+
+## HarmonyOS 版
+
+见 [`harmonyos/README.md`](./harmonyos/README.md)。当前 1.1.0，同一个 app 包内包含
+`entry`（phone / tablet）与 `wearable`（智能手表）两个 HAP，最低兼容 HarmonyOS 5.1 (API 18)。
+NOAA 算法、闹钟实体、时间格式等纯逻辑层与 Android 版保持一致，平台层（代理提醒、定位、存储、服务卡片）重写。
+
+> 该目录的 `build-profile.json5` 是脱敏版，不含签名证书与口令；本地打包需自行配置签名。

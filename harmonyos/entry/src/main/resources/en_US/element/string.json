@@ -1,26 +1,44 @@
 {
   "string": [
-    { "name": "home_title", "value": "Alarms" },
-    { "name": "add_alarm", "value": "Add Alarm" },
-    { "name": "location_title", "value": "Location" },
-    { "name": "settings_title", "value": "Settings" },
-    { "name": "sunrise", "value": "Sunrise" },
-    { "name": "sunset", "value": "Sunset" },
-    { "name": "normal_alarm", "value": "Normal Alarm" },
-    { "name": "search_location", "value": "Search city" },
-    { "name": "use_current_location", "value": "Use current location" },
-    { "name": "no_alarm", "value": "No alarms yet. Tap + to add." },
-    { "name": "alarm_type_sunrise", "value": "Sunrise Alarm" },
-    { "name": "alarm_type_sunset", "value": "Sunset Alarm" },
-    { "name": "alarm_type_normal", "value": "Normal Alarm" },
-    { "name": "offset_label", "value": "Offset (minutes)" },
-    { "name": "save", "value": "Save" },
-    { "name": "cancel", "value": "Cancel" },
-    { "name": "enable_location_hint", "value": "Please enable location permission in settings" },
-    { "name": "manual_location", "value": "Manual lat/lng" },
-    { "name": "latitude", "value": "Latitude" },
-    { "name": "longitude", "value": "Longitude" },
-    { "name": "theme_dark", "value": "Dark Warm Theme" },
-    { "name": "daylight", "value": "Daylight" }
+    {
+      "name": "module_desc",
+      "value": "Sunrise and sunset alarm main module"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "Wake you up with the sunrise and sunset"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "Sunrise Alarm"
+    },
+    {
+      "name": "EntryFormAbility_desc",
+      "value": "Sunrise and sunset card for the home screen"
+    },
+    {
+      "name": "EntryFormAbility_label",
+      "value": "Sunrise Sunset Card"
+    },
+    {
+      "name": "widget_desc",
+      "value": "Check today's sunrise and sunset times from your home screen"
+    },
+    {
+      "name": "widget_display_name",
+      "value": "Sunrise Sunset"
+    },
+    {
+      "name": "perm_location_reason",
+      "value": "Used to calculate local sunrise and sunset times based on your location"
+    },
+    {
+      "name": "RingAbility_desc",
+      "value": "Show the alarm in full screen when it rings"
+    },
+    {
+      "name": "RingAbility_label",
+      "value": "Alarm ringing"
+    }
   ]
 }

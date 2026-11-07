@@ -1,6 +1,7 @@
 {
   "src": [
-    "pages/HomePage",
-    "pages/AddAlarmPage"
+    "pages/Index",
+    "pages/AlarmEditPage",
+    "pages/RingPage"
   ]
 }

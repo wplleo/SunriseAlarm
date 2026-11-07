@@ -1,26 +1,44 @@
 {
   "string": [
-    { "name": "home_title", "value": "闹钟" },
-    { "name": "add_alarm", "value": "新增闹钟" },
-    { "name": "location_title", "value": "位置" },
-    { "name": "settings_title", "value": "设置" },
-    { "name": "sunrise", "value": "日出" },
-    { "name": "sunset", "value": "日落" },
-    { "name": "normal_alarm", "value": "普通闹钟" },
-    { "name": "search_location", "value": "搜索城市" },
-    { "name": "use_current_location", "value": "使用当前位置" },
-    { "name": "no_alarm", "value": "还没有闹钟，点右下角添加" },
-    { "name": "alarm_type_sunrise", "value": "日出闹钟" },
-    { "name": "alarm_type_sunset", "value": "日落闹钟" },
-    { "name": "alarm_type_normal", "value": "普通闹钟" },
-    { "name": "offset_label", "value": "提前/延后（分钟）" },
-    { "name": "save", "value": "保存" },
-    { "name": "cancel", "value": "取消" },
-    { "name": "enable_location_hint", "value": "请在系统设置中开启定位权限" },
-    { "name": "manual_location", "value": "手动输入经纬度" },
-    { "name": "latitude", "value": "纬度" },
-    { "name": "longitude", "value": "经度" },
-    { "name": "theme_dark", "value": "暗色暖橙主题" },
-    { "name": "daylight", "value": "白昼时长" }
+    {
+      "name": "module_desc",
+      "value": "日出日落闹钟主模块"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "跟随日出日落时间唤醒你"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "日出闹钟"
+    },
+    {
+      "name": "EntryFormAbility_desc",
+      "value": "桌面日出日落时间卡片"
+    },
+    {
+      "name": "EntryFormAbility_label",
+      "value": "日出日落卡片"
+    },
+    {
+      "name": "widget_desc",
+      "value": "在桌面查看今天的日出日落时间"
+    },
+    {
+      "name": "widget_display_name",
+      "value": "日出日落"
+    },
+    {
+      "name": "perm_location_reason",
+      "value": "用于根据你所在位置计算当地的日出与日落时间"
+    },
+    {
+      "name": "RingAbility_desc",
+      "value": "闹钟响铃时全屏显示"
+    },
+    {
+      "name": "RingAbility_label",
+      "value": "闹钟响铃"
+    }
   ]
 }

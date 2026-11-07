@@ -1,5 +1,8 @@
 {
   "string": [
-    { "name": "app_name", "value": "晨光闹钟" }
+    {
+      "name": "app_name",
+      "value": "日出闹钟"
+    }
   ]
 }

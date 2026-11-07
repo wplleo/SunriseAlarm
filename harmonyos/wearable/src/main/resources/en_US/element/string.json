@@ -1,0 +1,28 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "Sunrise & Sunset Alarm for watches"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "Wake you up with the sunrise and sunset"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "Sunrise Alarm"
+    },
+    {
+      "name": "perm_location_reason",
+      "value": "Used to calculate local sunrise and sunset times"
+    },
+    {
+      "name": "RingAbility_desc",
+      "value": "Full-screen alarm ringing page"
+    },
+    {
+      "name": "RingAbility_label",
+      "value": "Alarm Ringing"
+    }
+  ]
+}

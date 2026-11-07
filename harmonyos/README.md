@@ -1,108 +1,109 @@
-# 晨光闹钟 (SunriseAlarm) — HarmonyOS NEXT 版
+# 晨光闹钟 (SunriseAlarm) — HarmonyOS 版
 
-基于 NOAA 天文算法离线计算日出日落的闹钟 App，ArkTS / ArkUI 实现，适配 HarmonyOS NEXT（API 12+, Stage 模型）。
+基于 NOAA 天文算法**离线**计算日出日落的闹钟应用。`com.sunrise.alarm`，当前版本 **1.1.0 (1000006)**。
 
-> 这是 Android 版（Kotlin/Jetpack Compose）的鸿蒙移植。核心 NOAA 算法从 Kotlin 1:1 翻译为 ArkTS，UI 与平台集成层（定位/闹钟/通知）按鸿蒙 API 重写。
+同一个 app 包内含两个 HAP，支持 **手机 / 平板 / 智能手表**（HUAWEI WATCH 5 等 HarmonyOS 5.1 穿戴设备）：
+
+| 模块 | deviceTypes | 说明 |
+|---|---|---|
+| `entry` | phone, tablet | 主应用：闹钟、位置、设置、日出日落服务卡片 |
+| `wearable` | wearable | 手表应用：抬腕看今日日出日落、表上直接建闹钟、到点震动唤醒 |
+
+> 仓库根目录是 Android 版（Kotlin / Jetpack Compose），本目录是 HarmonyOS 版。NOAA 算法层两端共用同一套逻辑。
 
 ## 功能
 
-- 🌅 **日出闹钟** / 🌇 **日落闹钟**：按 NOAA 算出的日出日落时间动态触发，支持提前/延后偏移
-- ⏰ **普通闹钟**：每天固定时间
-- 📍 **位置**：GPS 自动定位、城市搜索、手动经纬度输入（逆地理编码）
-- 🌑 **暗色暖橙主题**：与 Android 版一致的视觉
+- **日出 / 日落闹钟**：按当天实际日出日落时间动态触发，可提前或延后 0–120 分钟；每天都不同，所以每次响铃后重新计算并续排下一次
+- **普通闹钟**：固定时刻 + 七日重复
+- **位置**：GPS 自动定位、城市搜索、手动经纬度（手表端精简为常用城市点选）
+- **代理提醒**：`reminderAgentManager` 系统级提醒，杀掉进程也能响；穿戴设备无管控限制，手机/平板需申请开放能力
+- **服务卡片**：桌面 2×2「日出日落」卡片，不打开应用即可看时间与昼长
+- **暗色暖橙主题**：`#161618` / `#FF8C42`，手表端用纯黑 OLED 底色
 
-## 架构
+## 技术栈
+
+ArkTS + ArkUI（Stage 模型）、relationalStore（手机端闹钟库）、preferences（轻量设置 / 手表端闹钟）、
+reminderAgentManager、geoLocationManager、FormExtensionAbility、vibrator。
+
+- `compileSdkVersion 26.0.0` / `targetSdkVersion 26.0.0`
+- **`compatibleSdkVersion 5.1.0(18)`** —— 手表首次支持智能穿戴开发就是 API 18，写高了好手表装不上。
+  代价是手机端也能装到 API 18–25 的老设备，因此超过 18 的 API 一律用 `canIUse` 保护（定位、代理提醒已做）。
+
+## 目录结构
 
 ```
-entry/src/main/ets/
-├── entryability/EntryAbility.ts      # 应用入口，初始化存储
-├── pages/
-│   ├── HomePage.ets                  # 主页面：Tab(闹钟/位置/设置) + 今日日出日落 + 闹钟列表
-│   ├── AddAlarmPage.ets              # 新增闹钟
-│   ├── LocationPage.ets              # 位置管理（嵌入 HomePage）
-│   └── SettingsPage.ets              # 设置（嵌入 HomePage）
-├── service/
-│   ├── LocationService.ets           # @ohos.geoLocationManager 封装
-│   └── AlarmScheduler.ets            # @ohos.reminderAgentManager 封装（替代 AlarmManager）
-├── data/AlarmRepository.ets          # @ohos.data.preferences 存储（替代 Room）
-├── model/AlarmModel.ets              # 闹钟数据模型
-├── utils/SunriseSunsetCalculator.ets # NOAA 日出日落算法（纯数学，零平台依赖）
-└── theme/Theme.ets                   # 主题色板
+harmonyos/
+├── AppScope/                 # bundleName、版本、应用图标
+├── entry/src/main/ets/
+│   ├── common/               # NOAA 算法、时间格式、主题、隐私同意
+│   ├── data/                 # AlarmRepository(relationalStore) / SettingsStore
+│   ├── model/                # AlarmEntity（与 Android 版字段一致）
+│   ├── service/              # LocationService / ReminderService / SunApiService
+│   ├── pages/                # Index / AlarmEditPage / RingPage
+│   ├── views/                # HomeView / LocationView / SettingsView
+│   ├── widget/pages/         # WidgetCard（服务卡片）
+│   ├── entryability/  ringability/
+│   └── entryformability/     # EntryFormAbility
+├── wearable/src/main/ets/    # 手表端，算法层从 entry 原样复用
+│   ├── common/WatchTheme.ets
+│   ├── data/AlarmStore.ets         # preferences 存 JSON，冷启动更快
+│   ├── service/ReminderService.ets # 全屏页不支持时自动降级
+│   └── pages/                      # Index / AlarmEditPage / LocationPage / RingPage
+├── icon/                     # 应用市场用 1024×1024 图标
+└── tools/verify-sunrise.ts   # 日出算法校验脚本
 ```
 
-## 与原 Android 版的关键差异
+## 圆屏布局约束（改手表 UI 前先读）
 
-| 能力 | Android | HarmonyOS NEXT |
-|------|---------|----------------|
-| 闹钟调度 | `AlarmManager` + `BroadcastReceiver` | `reminderAgentManager`（系统级提醒） |
-| 定位 | `LocationManager` / `Geocoder` | `geoLocationManager` |
-| 存储 | Room (SQLite) | `data.preferences` |
-| UI | Jetpack Compose | ArkUI |
+WATCH 5 为 **233×233 vp 圆屏**（r = 116.5）。距顶 y 处的可用宽度：
 
-### 日出/日落闹钟的重复机制
-
-日出日落时间每天都不同，鸿蒙的 `ReminderRequestTimer` 一次性触发。本项目发布的是「下一次」触发时间；
-要让它每天自动响，**需在触发后重新计算并再次发布**（建议在 App 启动时调用一次 reschedule）。
-普通闹钟用 `ReminderRequestAlarm` + `daysOfWeek` 每日重复，无需额外处理。
-
-## 编译运行
-
-1. 安装 [DevEco Studio](https://developer.huawei.com/consumer/cn/deveco-studio/)（NEXT 版本）
-2. 打开本目录（`File > Open > SunriseAlarmOHOS`）
-3. 用华为开发者账号签名（**File > Project Structure > Signing Configs**，勾选 Automatically generate signature）
-4. 连接真机或启动模拟器，`Run > Run 'entry'`
-
-> 真机调试需要华为开发者账号并完成设备实名。模拟器部分定位/提醒能力可能受限。
-
-### 命令行编译（CI / 无 GUI，已验证）
-
-已用 **HarmonyOS Command Line Tools 6.1.1.300** 在本机跑通（`BUILD SUCCESSFUL`）。
-
-**前提：**
-- 下载 [Command Line Tools for HarmonyOS](https://developer.huawei.com/consumer/cn/download/)（内含 hvigor + ohpm + SDK + node）
-- 单独装 JDK 17（工具链不含 JDK）
-
-**⚠️ 路径必须全英文！** 项目路径、SDK 路径、JDK 路径都不能含中文（`软件开发` 会导致 hvigor / SDK 资源解析失败）。建议：
-- 工具链放 `C:\ohos_tools\command-line-tools`
-- JDK 放 `C:\jdk17`
-- 本项目放 `C:\ohos_build\SunriseAlarmOHOS`
-
-**直接运行：**
-
-```bat
-REM build_ohos.bat（已内置，按上面路径摆放后双击即可）
-build_ohos.bat
-REM 产物: build/outputs/default/SunriseAlarmOHOS-default-unsigned.app
-REM        entry/build/default/outputs/default/entry-default-unsigned.hap
+```
+W(y) = 2 × √(r² − (r − y)²)
 ```
 
-**手动命令（等效，绕过 .bat 沙箱限制）：**
+y=18→124、y=30→156、y=44→182、圆心→233。**贴顶、贴底、满宽的布局一定会被圆弧切角**。
+所以手表端内容一律垂直居中或留 40vp+ 上下内边距；底部按钮宽度收窄到 140；
+返回按钮放在 `(40,16)` 而不是左上角 `(8,8)`（后者在圆外，点不到）。
+列表用 `ArcList` / `ArcListItem`（API 18 起），必须显式 `import { ArcList, ArcListItem } from '@ohos.arkui.ArcList'`，
+`.space()` 是属性方法且参数是 `LengthMetrics`，不是构造参数。
+
+## 编译
+
+DevEco Studio 直接打开本目录即可。命令行（已在本机跑通）：
 
 ```bash
-export JAVA_HOME=/c/ohos_tools/jdk17          # 正斜杠给 bash 找 java
-export DEVECO_NODE_HOME=C:/ohos_tools/command-line-tools/tool/node   # 反斜杠给 node
-export DEVECO_SDK_HOME=C:/ohos_tools/command-line-tools/sdk
-export PATH=$JAVA_HOME/bin:$DEVECO_NODE_HOME:$PATH
-unset NODE_OPTIONS                            # 关键：关掉 WorkBuddy safe-delete shim
-unset CODEBUDDY_SESSION_ID
-cd /c/ohos_build/SunriseAlarmOHOS
-node $DEVECO_NODE_HOME/node.exe $DEVECO_NODE_HOME/../../hvigor/bin/hvigorw.js assembleApp --no-daemon
+export DEVECO_SDK_HOME="C:/Program Files/Huawei/DevEco Studio/sdk"
+node "$DEVECO_SDK_HOME/../tools/node/node.exe" \
+  "$DEVECO_SDK_HOME/../tools/hvigor/bin/hvigorw.js" \
+  --mode project -p product=default assembleApp --no-daemon
 ```
 
-> **签名**：`hapsigner` / `hap-sign-tool.jar` 不在 Command Line Tools 包内。真机安装需华为开发者账号调试签名——在 DevEco Studio 打开本项目，`File > Project Structure > Signing Configs` 勾 **Automatically generate signature** 即可产出可装真机的签名包。当前命令行产物为**未签名**版（模拟器可装，真机需签名）。
+产物在 `build/outputs/default/SunriseAlarmHarmony-default-signed.app`，
+内含 `entry-default.hap` + `wearable-default.hap`。不设 `DEVECO_SDK_HOME` 会报 `00303217 Configuration Error`。
 
-> **HAP vs APP**：`.hap` 是模块包，可直接装模拟器 / 已签名真机调试；`.app` 是打包的发布格式，需要正式签名后才能上架或分发安装。
+## 签名配置（clone 后必读）
 
+**证书和口令不在这个仓库里**。`build-profile.json5` 是脱敏版，`signingConfigs` 整段被移除，
+所以直接打包只会得到 unsigned 包。本地要出签名包，请：
 
-## 权限
+1. 用 DevEco Studio 的 *File > Project Structure > Signing Configs* 自动生成签名，
+   或把自己的证书放进 `signature/`（已被 `.gitignore` 排除）；
+2. 在 `build-profile.json5` 的 `app` 下补回 `signingConfigs`，并在 `products[0]` 里加 `"signingConfig": "default"`；
+3. 别名、加密口令、`.cer` / `.p7b` / `.p12` 路径按自己账号填。
 
-`module.json5` 已声明：
-- `ohos.permission.LOCATION` / `ohos.permission.APPROXIMATELY_LOCATION`（定位）
-- `ohos.permission.PUBLISH_AGENT_REMINDER`（发布系统提醒）
+模板片段已写在 `build-profile.json5` 顶部注释里。
 
-运行时首次使用定位会弹窗申请。
+## 与 Android 版的关键差异
 
-## 下一步
+| 能力 | Android | HarmonyOS |
+|---|---|---|
+| 闹钟调度 | AlarmManager + BroadcastReceiver | reminderAgentManager（代理提醒） |
+| 定位 | Google Play Services Location | geoLocationManager |
+| 存储 | Room | relationalStore / preferences |
+| UI | Jetpack Compose | ArkUI（手表用 ArcList） |
+| 桌面 | App Widget | FormExtensionAbility 服务卡片 |
 
-- iOS 版（用 Kotlin Multiplatform 共享核心逻辑 + SwiftUI，或 Flutter）
-- 日出/日落闹钟的每日自动 reschedule 逻辑
+## 备注
+
+- `build-output/` 里保留的是**早期 API 12 版本**的演示包，不是当前 1.1.0 的包，别拿去装。
+- 手表震动强度、代理提醒到点、圆屏实际裁切等仍需在真机上复验（开发环境无穿戴设备）。

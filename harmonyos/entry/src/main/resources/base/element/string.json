@@ -1,8 +1,44 @@
 {
   "string": [
-    { "name": "module_desc", "value": "晨光闹钟主模块" },
-    { "name": "EntryAbility_label", "value": "晨光闹钟" },
-    { "name": "location_permission_reason", "value": "用于获取当前位置以计算日出日落时间" },
-    { "name": "reminder_permission_reason", "value": "用于发布日出日落系统提醒（闹钟）" }
+    {
+      "name": "module_desc",
+      "value": "日出日落闹钟主模块"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "跟随日出日落时间唤醒你"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "日出闹钟"
+    },
+    {
+      "name": "EntryFormAbility_desc",
+      "value": "桌面日出日落时间卡片"
+    },
+    {
+      "name": "EntryFormAbility_label",
+      "value": "日出日落卡片"
+    },
+    {
+      "name": "widget_desc",
+      "value": "在桌面查看今天的日出日落时间"
+    },
+    {
+      "name": "widget_display_name",
+      "value": "日出日落"
+    },
+    {
+      "name": "perm_location_reason",
+      "value": "用于根据你所在位置计算当地的日出与日落时间"
+    },
+    {
+      "name": "RingAbility_desc",
+      "value": "闹钟响铃时全屏显示"
+    },
+    {
+      "name": "RingAbility_label",
+      "value": "闹钟响铃"
+    }
   ]
 }
