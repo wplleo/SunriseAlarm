@@ -16,6 +16,7 @@ import { AlarmRepository } from '../data/AlarmRepository';
 import { HomeView } from '../views/HomeView';
 import { LocationView } from '../views/LocationView';
 import { SettingsView } from '../views/SettingsView';
+import { t, Locale } from '../common/I18n';
 
 const PAGE_HOME: number = 0;
 const PAGE_LOCATION: number = 1;
@@ -32,6 +33,11 @@ struct Index {
   @State homeTick: number = 0;
   @State locTick: number = 0;
   @State setTick: number = 0;
+  /**
+   * 语言切换广播。设置页改语言时自增，这里把三个 Tab 的 tick 全部 +1，
+   * 各页面 reload() 后 t() 重新取词条 —— 否则只有当前页会变，其它页还是旧语言。
+   */
+  @StorageLink('langVersion') @Watch('onLangChange') langVersion: number = 0;
 
   private swiper: SwiperController = new SwiperController();
   private context: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
@@ -48,6 +54,8 @@ struct Index {
       console.error(`[Index] 初始化失败: ${e.code} ${e.message}`);
     }
     this.colors = ThemeManager.colors(this.context);
+    // 冷启动先应用已保存的语言偏好，保证第一帧就是用户选的语言
+    Locale.setOverride(SettingsStore.getLanguage());
     this.privacyAgreed = PrivacyConsent.isAgreed();
     if (!this.privacyAgreed) {
       this.showPrivacy = true;
@@ -63,6 +71,13 @@ struct Index {
    */
   onPageShow(): void {
     this.homeTick = this.homeTick + 1;
+  }
+
+  /** 设置页切换语言 -> 三个 Tab 一起重算文案 */
+  onLangChange(): void {
+    this.homeTick = this.homeTick + 1;
+    this.locTick = this.locTick + 1;
+    this.setTick = this.setTick + 1;
   }
 
   /** 切换页面：Swiper 滚动 + 刷新目标页 */
@@ -156,9 +171,9 @@ struct Index {
   @Builder
   TabBar() {
     Row() {
-      this.TabItem('闹钟', $r('app.media.ic_alarm'), PAGE_HOME)
-      this.TabItem('位置', $r('app.media.ic_location'), PAGE_LOCATION)
-      this.TabItem('设置', $r('app.media.ic_settings'), PAGE_SETTINGS)
+      this.TabItem(t('common.alarm'), $r('app.media.ic_alarm'), PAGE_HOME)
+      this.TabItem(t('common.location'), $r('app.media.ic_location'), PAGE_LOCATION)
+      this.TabItem(t('common.settings'), $r('app.media.ic_settings'), PAGE_SETTINGS)
     }
     .width('100%')
     .padding({ top: 8, bottom: 8 })
@@ -193,65 +208,65 @@ struct Index {
   privacyOverlay() {
     Column() {
       Column() {
-        Text('用户协议与隐私政策')
+        Text(t('privacy.title'))
           .fontSize(18)
           .fontWeight(FontWeight.Medium)
           .fontColor(this.colors.text)
-        Text('请在使用「日出闹钟」前阅读并同意以下内容')
+        Text(t('privacy.subtitle'))
           .fontSize(12)
           .fontColor(this.colors.textGray)
           .margin({ top: 6 })
 
         Scroll() {
           Column({ space: 10 }) {
-            Text('一、我们收集哪些信息')
+            Text(t('privacy.sectionCollect'))
               .fontSize(13)
               .fontWeight(FontWeight.Medium)
               .fontColor(this.colors.text)
               .width('100%')
-            Text('· 位置信息（粗略 / 精确）：仅在你点击「定位」并授权后获取，用于在本机离线计算当地日出、日落时间。\n· 闹钟设置：你创建的时间、铃声、重复规则。')
+            Text(t('privacy.bodyCollect'))
               .fontSize(12)
               .lineHeight(19)
               .fontColor(this.colors.textSub)
               .width('100%')
 
-            Text('二、信息如何存储')
-              .fontSize(13)
-              .fontWeight(FontWeight.Medium)
-              .fontColor(this.colors.text)
-              .width('100%')
-              .margin({ top: 2 })
-            Text('以上信息全部保存在你的设备本地，不上传服务器。本应用没有账号体系，我们无法远程读取你的数据；卸载应用即全部删除。')
-              .fontSize(12)
-              .lineHeight(19)
-              .fontColor(this.colors.textSub)
-              .width('100%')
-
-            Text('三、权限用途')
+            Text(t('privacy.sectionStorage'))
               .fontSize(13)
               .fontWeight(FontWeight.Medium)
               .fontColor(this.colors.text)
               .width('100%')
               .margin({ top: 2 })
-            Text('· 位置权限：计算日出日落时间，拒绝后可使用手动选择的城市。\n· 通知权限：闹钟到点时响铃提醒。\n· 网络权限：可选，仅用于在线校准日出日落数据。')
+            Text(t('privacy.bodyStorage'))
               .fontSize(12)
               .lineHeight(19)
               .fontColor(this.colors.textSub)
               .width('100%')
 
-            Text('四、第三方共享')
+            Text(t('privacy.sectionPermission'))
               .fontSize(13)
               .fontWeight(FontWeight.Medium)
               .fontColor(this.colors.text)
               .width('100%')
               .margin({ top: 2 })
-            Text('本应用不接入广告、统计、推送类 SDK，不会向任何第三方共享或转让你的信息。')
+            Text(t('privacy.bodyPermission'))
               .fontSize(12)
               .lineHeight(19)
               .fontColor(this.colors.textSub)
               .width('100%')
 
-            Text('点击「同意并继续」即表示你已阅读并同意上述内容。')
+            Text(t('privacy.sectionThirdParty'))
+              .fontSize(13)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(this.colors.text)
+              .width('100%')
+              .margin({ top: 2 })
+            Text(t('privacy.bodyThirdParty'))
+              .fontSize(12)
+              .lineHeight(19)
+              .fontColor(this.colors.textSub)
+              .width('100%')
+
+            Text(t('privacy.footnote'))
               .fontSize(12)
               .fontColor(this.colors.textGray)
               .width('100%')
@@ -266,7 +281,7 @@ struct Index {
         .margin({ top: 14 })
 
         Row({ space: 12 }) {
-          Text('不同意并退出')
+          Text(t('privacy.reject'))
             .fontSize(15)
             .fontColor(this.colors.textGray)
             .textAlign(TextAlign.Center)
@@ -276,7 +291,7 @@ struct Index {
             .backgroundColor(this.colors.cardHover)
             .onClick(() => { this.onPrivacyReject(); })
 
-          Text('同意并继续')
+          Text(t('privacy.agree'))
             .fontSize(15)
             .fontWeight(FontWeight.Medium)
             .fontColor(this.colors.onAccent)

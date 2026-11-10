@@ -6,6 +6,7 @@
  * 所有要展示"几点几分"的地方都必须走这里。
  */
 import { SettingsStore } from '../data/SettingsStore';
+import { t } from './I18n';
 
 export class TimeFormat {
 
@@ -24,7 +25,7 @@ export class TimeFormat {
     if (TimeFormat.isHour24()) {
       return '';
     }
-    return hour < 12 ? '上午' : '下午';
+    return hour < 12 ? t('time.am') : t('time.pm');
   }
 
   /** 小时数：12 小时制下 0→12、13→1 */

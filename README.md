@@ -5,7 +5,7 @@
 | 平台 | 目录 | 说明 |
 |------|------|------|
 | Android | 仓库根目录 | Kotlin / Jetpack Compose，见下文 |
-| HarmonyOS | [`harmonyos/`](./harmonyos/) | ArkTS / ArkUI，手机 + 平板 + 智能手表（WATCH 5） |
+| HarmonyOS | [`harmonyos/`](./harmonyos/) | ArkTS / ArkUI，手机 + 平板（HarmonyOS 5.1+） |
 
 以下为 **Android 版**文档。
 
@@ -117,8 +117,11 @@ gradle wrapper
 
 ## HarmonyOS 版
 
-见 [`harmonyos/README.md`](./harmonyos/README.md)。当前 1.1.0，同一个 app 包内包含
-`entry`（phone / tablet）与 `wearable`（智能手表）两个 HAP，最低兼容 HarmonyOS 5.1 (API 18)。
+见 [`harmonyos/README.md`](./harmonyos/README.md)。当前 1.1.1，单 `entry` HAP，支持
+phone / tablet，最低兼容 HarmonyOS 5.1 (API 18)。
 NOAA 算法、闹钟实体、时间格式等纯逻辑层与 Android 版保持一致，平台层（代理提醒、定位、存储、服务卡片）重写。
+界面文案走内嵌的中英双语词条，跟随系统语言，也可在「设置 → 语言」里手动切换。
+
+> 1.1.1 起不再包含手表端（原 `wearable` 模块已移除），发布设备类型为手机 / 平板。
 
 > 该目录的 `build-profile.json5` 是脱敏版，不含签名证书与口令；本地打包需自行配置签名。

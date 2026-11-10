@@ -22,10 +22,14 @@ export class LocationResult {
   }
 }
 
-const NEEDED_PERMISSIONS: Array<Permissions> = [
-  'ohos.permission.APPROXIMATELY_LOCATION',
-  'ohos.permission.LOCATION'
-];
+/**
+ * 定位权限：精确（LOCATION）与模糊（APPROXIMATELY_LOCATION）**同属一个权限组**，
+ * 不能放在一次 requestPermissionsFromUser 里申请 —— 一起申请时系统返回的
+ * authResults 是非 0，于是「用户明明已经开了权限，应用却提示定位失败」
+ * （AGC 审核问题 1-5）。所以拆成两个常量，分开申请、分开判定。
+ */
+const PRECISE_PERMISSION: Permissions = 'ohos.permission.LOCATION';
+const FUZZY_PERMISSION: Permissions = 'ohos.permission.APPROXIMATELY_LOCATION';
 
 /** 内置城市（含常用别名，用于离线模糊搜索） */
 class CityEntry {
@@ -120,15 +124,28 @@ export class LocationService {
       console.warn('[LocationService] 未同意隐私政策，已阻止定位权限申请');
       return false;
     }
+    // 已经有权限（精确或模糊任一）就直接用，不重复弹窗
+    if (await LocationService.hasPermission(context)) {
+      return true;
+    }
+    const atManager: abilityAccessCtrl.AtManager = abilityAccessCtrl.createAtManager();
+    // 先申请精确；用户只给了模糊权限时，再单独申请模糊
+    if (await LocationService.requestOne(atManager, context, PRECISE_PERMISSION)) {
+      return true;
+    }
+    return await LocationService.requestOne(atManager, context, FUZZY_PERMISSION);
+  }
+
+  /** 单独申请一个权限（同组权限不能合并申请） */
+  private static async requestOne(atManager: abilityAccessCtrl.AtManager,
+    context: common.UIAbilityContext, permission: Permissions): Promise<boolean> {
     try {
-      const atManager: abilityAccessCtrl.AtManager = abilityAccessCtrl.createAtManager();
-      const result = await atManager.requestPermissionsFromUser(context, NEEDED_PERMISSIONS);
-      // authResults 里 0 表示已授权
+      const result = await atManager.requestPermissionsFromUser(context, [permission]);
       const granted: number[] = result.authResults;
-      return granted.length > 0 && granted.every((code: number) => code === 0);
+      return granted.length > 0 && granted[0] === 0;
     } catch (err) {
       const e: BusinessError = err as BusinessError;
-      console.error(`[LocationService] 申请权限失败: ${e.code} ${e.message}`);
+      console.error(`[LocationService] 申请权限失败(${permission}): ${e.code} ${e.message}`);
       return false;
     }
   }
@@ -251,17 +268,19 @@ export class LocationService {
     return out.slice(0, 5);
   }
 
-  /** 检查是否已有定位权限（不弹窗） */
-  static async hasPermission(context: common.UIAbilityContext): Promise<boolean> {    try {
+  /** 检查是否已有定位权限（不弹窗）。精确或模糊任一授予即算可用 */
+  static async hasPermission(context: common.UIAbilityContext): Promise<boolean> {
+    try {
       const atManager: abilityAccessCtrl.AtManager = abilityAccessCtrl.createAtManager();
       const tokenId: number = context.applicationInfo.accessTokenId;
-      for (const p of NEEDED_PERMISSIONS) {
-        const status: abilityAccessCtrl.GrantStatus = await atManager.checkAccessToken(tokenId, p);
-        if (status !== abilityAccessCtrl.GrantStatus.PERMISSION_GRANTED) {
-          return false;
-        }
+      const precise: abilityAccessCtrl.GrantStatus =
+        await atManager.checkAccessToken(tokenId, PRECISE_PERMISSION);
+      if (precise === abilityAccessCtrl.GrantStatus.PERMISSION_GRANTED) {
+        return true;
       }
-      return true;
+      const fuzzy: abilityAccessCtrl.GrantStatus =
+        await atManager.checkAccessToken(tokenId, FUZZY_PERMISSION);
+      return fuzzy === abilityAccessCtrl.GrantStatus.PERMISSION_GRANTED;
     } catch (err) {
       return false;
     }

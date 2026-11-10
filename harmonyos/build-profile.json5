@@ -14,11 +14,9 @@
     "products": [
       {
         "name": "default",
-        // 编译仍用 API 26 SDK（能写最新 API），但最低兼容到 API 18。
-        // 原因：手表（WATCH 5 等智能穿戴）首次支持是 HarmonyOS 5.1 / API 18，
-        // 之前写 26.0.0 会导致手表根本装不上这个包。
-        // 代价：手机端也能装到 API 18-25 的老设备，所以超过 18 的 API
-        //      都要用 canIUse 判断（本项目已对定位、代理提醒做了保护）。
+        // 最低兼容 API 18（HarmonyOS 5.1）。1.1.1 起不再发布手表端，
+        // 保留 18 是为了覆盖仍在使用 HarmonyOS 5.1 的老手机。
+        // 代价：超过 18 的 API 都要用 canIUse 判断（本项目已对定位、代理提醒做了保护）。
         "compileSdkVersion": "26.0.0",
         "compatibleSdkVersion": "5.1.0(18)",
         "targetSdkVersion": "26.0.0",
@@ -38,18 +36,6 @@
     {
       "name": "entry",
       "srcPath": "./entry",
-      "targets": [
-        {
-          "name": "default",
-          "applyToProducts": [
-            "default"
-          ]
-        }
-      ]
-    },
-    {
-      "name": "wearable",
-      "srcPath": "./wearable",
       "targets": [
         {
           "name": "default",

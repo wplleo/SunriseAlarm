@@ -10,13 +10,14 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { ThemeManager, ThemeColors, DARK_COLORS } from '../common/AppTheme';
 import { ReminderService } from '../service/ReminderService';
 import { TimeFormat } from '../common/TimeFormat';
+import { t } from '../common/I18n';
 
 @Entry
 @Component
 struct RingPage {
   @State colors: ThemeColors = DARK_COLORS;
   @State alarmId: number = 0;
-  @State label: string = '闹钟';
+  @State label: string = t('common.alarm');
   @State timeText: string = '';
   @State snoozeMinutes: number = 5;
   @State nowText: string = '';
@@ -35,7 +36,7 @@ struct RingPage {
     this.colors = ThemeManager.colors(ctx);
 
     this.alarmId = AppStorage.get<number>('ringAlarmId') ?? 0;
-    this.label = AppStorage.get<string>('ringLabel') ?? '闹钟';
+    this.label = AppStorage.get<string>('ringLabel') ?? t('common.alarm');
     this.timeText = AppStorage.get<string>('ringTimeText') ?? '';
     this.snoozeMinutes = AppStorage.get<number>('ringSnoozeMinutes') ?? 5;
     const shouldVibrate: boolean = AppStorage.get<boolean>('ringVibrate') ?? true;
@@ -133,7 +134,7 @@ struct RingPage {
           .fontColor(this.colors.text)
           .fontWeight(FontWeight.Lighter)
 
-        Text('闹钟响铃中')
+        Text(t('ring.ringing'))
           .fontSize(15)
           .fontColor(this.colors.textGray)
       }
@@ -143,7 +144,7 @@ struct RingPage {
       Blank()
 
       Column({ space: 14 }) {
-        Text(`稍后提醒（${this.snoozeMinutes} 分钟）`)
+        Text(t('ring.snoozeButton', [this.snoozeMinutes]))
           .fontSize(17)
           .fontColor(this.colors.onAccent)
           .width('100%')
@@ -153,7 +154,7 @@ struct RingPage {
           .backgroundColor(this.colors.accent)
           .onClick(() => { this.onSnooze(); })
 
-        Text('关闭闹钟')
+        Text(t('common.closeAlarm'))
           .fontSize(17)
           .fontColor(this.colors.text)
           .width('100%')

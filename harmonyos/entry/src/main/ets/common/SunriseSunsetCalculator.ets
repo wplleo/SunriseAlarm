@@ -7,6 +7,7 @@
  * 参考: https://gml.noaa.gov/grad/solcalc/calcdetails.html
  */
 import { TimeFormat } from './TimeFormat';
+import { t } from './I18n';
 
 const DEG_TO_RAD: number = Math.PI / 180.0;
 const RAD_TO_DEG: number = 180.0 / Math.PI;
@@ -220,7 +221,7 @@ export class SunriseSunsetCalculator {
   static formatDaylight(minutes: number): string {
     const h: number = Math.floor(minutes / 60);
     const m: number = minutes % 60;
-    return `${h}时${m}分`;
+    return t('common.durationHM', [h, m]);
   }
 
   // ---- 内部工具 ----

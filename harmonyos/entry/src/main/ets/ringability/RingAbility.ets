@@ -9,6 +9,7 @@ import { AbilityConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { BusinessError } from '@kit.BasicServicesKit';
+import { t } from '../common/I18n';
 
 const DOMAIN: number = 0x0000;
 const TAG: string = 'SunriseAlarm';
@@ -18,7 +19,7 @@ export default class RingAbility extends UIAbility {
     // reminderAgentManager 通过 want.parameters 传参，转存到 AppStorage 供页面读取
     const p: Record<string, Object> = (want.parameters ?? {}) as Record<string, Object>;
     const alarmId: number = Number(p['alarmId'] ?? 0);
-    const label: string = String(p['label'] ?? '闹钟');
+    const label: string = String(p['label'] ?? t('common.alarm'));
     const timeText: string = String(p['timeText'] ?? '');
     const vibrate: boolean = String(p['vibrate'] ?? 'true') !== 'false';
     const snoozeMinutes: number = Number(p['snoozeMinutes'] ?? 5);

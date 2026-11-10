@@ -22,6 +22,7 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { notificationManager } from '@kit.NotificationKit';
 import { AlarmEntity, REPEAT_ONCE } from '../model/AlarmEntity';
 import { SunriseSunsetCalculator, SunTimes } from '../common/SunriseSunsetCalculator';
+import { t } from '../common/I18n';
 
 /** 日出/日落闹钟向后预排的天数 */
 const SUN_ALARM_LOOKAHEAD_DAYS: number = 7;
@@ -67,13 +68,13 @@ export class ReminderService {
       await notificationManager.requestEnableNotification(context);
       const after: boolean = await notificationManager.isNotificationEnabled();
       if (!after) {
-        ReminderService.lastErrorText = '未开启通知权限';
+        ReminderService.lastErrorText = t('notify.permDisabled');
       }
       return after;
     } catch (err) {
       const e: BusinessError = err as BusinessError;
       console.warn(`[ReminderService] 请求通知授权失败: ${e.code} ${e.message}`);
-      ReminderService.lastErrorText = `请求通知授权失败(${e.code})`;
+      ReminderService.lastErrorText = t('notify.permRequestFailed', [e.code]);
       return false;
     }
   }
@@ -119,12 +120,12 @@ export class ReminderService {
   ): void {
     req.title = title;
     // 正文与安卓通知保持一致：「闹钟响铃中」
-    req.content = '闹钟响铃中';
-    req.expiredContent = '闹钟已错过';
+    req.content = t('ring.ringing');
+    req.expiredContent = t('notify.missed');
     req.ringDuration = 60;
     req.snoozeTimes = alarm.snoozeEnabled ? 3 : 0;
     req.timeInterval = alarm.snoozeMinutes * 60;
-    req.snoozeContent = `稍后提醒 ${alarm.snoozeMinutes} 分钟`;
+    req.snoozeContent = t('notify.snoozeContent', [alarm.snoozeMinutes]);
     req.slotType = notificationManager.SlotType.SOCIAL_COMMUNICATION;
     req.snoozeSlotType = notificationManager.SlotType.SOCIAL_COMMUNICATION;
 
@@ -143,8 +144,8 @@ export class ReminderService {
       abilityName: RING_ABILITY
     };
     req.actionButton = [
-      { title: '稍后提醒', type: reminderAgentManager.ActionButtonType.ACTION_BUTTON_TYPE_SNOOZE },
-      { title: '关闭闹钟', type: reminderAgentManager.ActionButtonType.ACTION_BUTTON_TYPE_CLOSE }
+      { title: t('common.snooze'), type: reminderAgentManager.ActionButtonType.ACTION_BUTTON_TYPE_SNOOZE },
+      { title: t('common.closeAlarm'), type: reminderAgentManager.ActionButtonType.ACTION_BUTTON_TYPE_CLOSE }
     ];
   }
 
@@ -269,7 +270,7 @@ export class ReminderService {
       return reminderId;
     } catch (err) {
       const e: BusinessError = err as BusinessError;
-      ReminderService.lastErrorText = `闹钟发布失败(${e.code})`;
+      ReminderService.lastErrorText = t('notify.alarmPublishFailed', [e.code]);
       console.error(`[ReminderService] 发布循环闹钟失败: ${e.code} ${e.message}`);
       return -1;
     }
@@ -309,7 +310,7 @@ export class ReminderService {
       return reminderId;
     } catch (err) {
       const e: BusinessError = err as BusinessError;
-      ReminderService.lastErrorText = `提醒发布失败(${e.code})`;
+      ReminderService.lastErrorText = t('notify.reminderPublishFailed', [e.code]);
       console.error(`[ReminderService] 发布定时提醒失败: ${e.code} ${e.message}`);
       return -1;
     }
@@ -337,13 +338,13 @@ export class ReminderService {
         second: 0
       },
       title: title,
-      content: '稍后提醒',
-      expiredContent: '闹钟已错过',
+      content: t('common.snooze'),
+      expiredContent: t('notify.missed'),
       notificationId: alarmId * 100 + 99,
       ringDuration: 60,
       snoozeTimes: 1,
       timeInterval: Math.max(1, minutes) * 60,
-      snoozeContent: '稍后提醒',
+      snoozeContent: t('common.snooze'),
       slotType: notificationManager.SlotType.SOCIAL_COMMUNICATION,
       wantAgent: { pkgName: context.abilityInfo.bundleName, abilityName: 'EntryAbility' },
       maxScreenWantAgent: {
@@ -351,8 +352,8 @@ export class ReminderService {
         abilityName: RING_ABILITY
       },
       actionButton: [
-        { title: '稍后提醒', type: reminderAgentManager.ActionButtonType.ACTION_BUTTON_TYPE_SNOOZE },
-        { title: '关闭', type: reminderAgentManager.ActionButtonType.ACTION_BUTTON_TYPE_CLOSE }
+        { title: t('common.snooze'), type: reminderAgentManager.ActionButtonType.ACTION_BUTTON_TYPE_SNOOZE },
+        { title: t('common.close'), type: reminderAgentManager.ActionButtonType.ACTION_BUTTON_TYPE_CLOSE }
       ]
     };
     try {
@@ -424,11 +425,11 @@ export class ReminderService {
 
   private static defaultTitle(alarm: AlarmEntity): string {
     if (alarm.isSunrise()) {
-      return '日出闹钟';
+      return t('notify.sunriseAlarm');
     }
     if (alarm.isSunset()) {
-      return '日落闹钟';
+      return t('notify.sunsetAlarm');
     }
-    return '闹钟';
+    return t('common.alarm');
   }
 }

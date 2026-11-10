@@ -21,6 +21,7 @@ import { ReminderService } from '../service/ReminderService';
 import { SunApiService, ApiSunTimes } from '../service/SunApiService';
 import { PrivacyConsent } from '../common/PrivacyConsent';
 import { ThemeManager, ThemeColors, DARK_COLORS } from '../common/AppTheme';
+import { t } from '../common/I18n';
 
 @Component
 export struct HomeView {
@@ -43,6 +44,15 @@ export struct HomeView {
   onLocationClick: () => void = () => {};
 
   @State alarms: AlarmEntity[] = [];
+  /**
+   * 单张闹钟卡片的实测高度。
+   *
+   * 审核问题 2「添加多个闹钟后向下滑动显示不全」的根因是：整页只有一个外层 Scroll，
+   * 里面嵌的 List 高度是按项数硬算的。只要算出来的比实际矮，List 就会把最后一条裁掉，
+   * 外层 Scroll 再滚也补不回来（被裁的部分根本不在布局里）。
+   * 所以改成用 onAreaChange 实测一次卡片高度再乘项数 —— 字体放大、系统字号变化都不会算错。
+   */
+  @State cardHeight: number = 96;
   /**
    * 首次读取数据库是否已完成。
    *
@@ -112,7 +122,7 @@ export struct HomeView {
   private async afterConsent(): Promise<void> {
     const notifyOk: boolean = await ReminderService.ensureNotificationEnabled(this.context);
     if (!notifyOk) {
-      promptAction.showToast({ message: '未开启通知权限，闹钟可能无法响铃' });
+      promptAction.showToast({ message: t('home.notifyOff') });
     }
     await this.rescheduleAll();
     this.startTicker();
@@ -133,13 +143,13 @@ export struct HomeView {
   private async computeSun(): Promise<void> {
     const local: SunTimes | null =
       SunriseSunsetCalculator.calculateToday(this.latitude, this.longitude);
-    this.timeSource = '离线计算';
+    this.timeSource = t('home.timeSourceOffline');
 
     if (local === null) {
       this.sunriseText = '--:--';
       this.sunsetText = '--:--';
       this.daylightText = '--';
-      this.polarNote = '当前处于极昼或极夜，无日出日落';
+      this.polarNote = t('home.polarNote');
       this.sunProgress = -1;
       return;
     }
@@ -156,7 +166,7 @@ export struct HomeView {
       if (online !== null) {
         this.sunriseText = SunriseSunsetCalculator.formatTime(online.sunriseMinutes);
         this.sunsetText = SunriseSunsetCalculator.formatTime(online.sunsetMinutes);
-        this.timeSource = '天文台在线';
+        this.timeSource = t('home.timeSourceOnline');
         this.sunProgress = this.progressFromMinutes(online.sunriseMinutes, online.sunsetMinutes);
       }
     } catch (err) {
@@ -190,12 +200,12 @@ export struct HomeView {
       if (!a.enabled) {
         continue;
       }
-      const t: Date | null = AlarmTimeCalculator.nextTrigger(a, now, this.latitude, this.longitude);
-      if (t === null) {
+      const trigger: Date | null = AlarmTimeCalculator.nextTrigger(a, now, this.latitude, this.longitude);
+      if (trigger === null) {
         continue;
       }
-      if (t.getTime() < nearestTime) {
-        nearestTime = t.getTime();
+      if (trigger.getTime() < nearestTime) {
+        nearestTime = trigger.getTime();
         nearest = a;
       }
     }
@@ -203,15 +213,15 @@ export struct HomeView {
       return '';
     }
 
-    const t: Date = new Date(nearestTime);
-    const hh: string = t.getHours() < 10 ? `0${t.getHours()}` : `${t.getHours()}`;
-    const mm: string = t.getMinutes() < 10 ? `0${t.getMinutes()}` : `${t.getMinutes()}`;
+    const nextDate: Date = new Date(nearestTime);
+    const hh: string = nextDate.getHours() < 10 ? `0${nextDate.getHours()}` : `${nextDate.getHours()}`;
+    const mm: string = nextDate.getMinutes() < 10 ? `0${nextDate.getMinutes()}` : `${nextDate.getMinutes()}`;
 
-    let typeStr: string = '普通闹钟';
+    let typeStr: string = t('home.alarmTypeRegular');
     if (nearest.isSunrise()) {
-      typeStr = '日出闹钟';
+      typeStr = t('home.alarmTypeSunrise');
     } else if (nearest.isSunset()) {
-      typeStr = '日落闹钟';
+      typeStr = t('home.alarmTypeSunset');
     }
 
     const diffMs: number = nearestTime - now.getTime();
@@ -219,11 +229,12 @@ export struct HomeView {
     const diffMins: number = Math.floor(diffMs / 60000) % 60;
     let dayStr: string;
     if (diffHours < 24) {
-      dayStr = diffHours < 1 ? `${diffMins}分钟后` : `还有${diffHours}小时${diffMins}分`;
+      dayStr = diffHours < 1 ? t('home.inMinutes', [diffMins])
+        : t('home.remainTime', [diffHours, diffMins]);
     } else {
-      dayStr = `还有${Math.floor(diffHours / 24)}天`;
+      dayStr = t('home.remainDays', [Math.floor(diffHours / 24)]);
     }
-    return `${hh}:${mm} · ${typeStr} · ${dayStr}`;
+    return t('home.nextAlarmDetail', [`${hh}:${mm}`, typeStr, dayStr]);
   }
 
   private startTicker(): void {
@@ -263,18 +274,18 @@ export struct HomeView {
       await AlarmRepository.delete(alarm.id);
       this.alarms = await AlarmRepository.getAll();
       this.nextAlarmText = this.computeNextAlarmText();
-      promptAction.showToast({ message: '已删除' });
+      promptAction.showToast({ message: t('home.deleted') });
     } catch (err) {
       const e: BusinessError = err as BusinessError;
       console.error(`[Home] 删除失败: ${e.code} ${e.message}`);
-      promptAction.showToast({ message: '删除失败，请重试' });
+      promptAction.showToast({ message: t('home.deleteFailed') });
     }
   }
 
   /** 立即定位 */
   async locateNow(): Promise<void> {
     if (!PrivacyConsent.isAgreed()) {
-      promptAction.showToast({ message: '请先同意隐私政策后再使用定位' });
+      promptAction.showToast({ message: t('home.needPrivacy') });
       return;
     }
     if (this.locating) {
@@ -284,13 +295,13 @@ export struct HomeView {
     try {
       const r: LocationResult | null = await LocationService.getCurrentLocation(this.context);
       if (r === null) {
-        promptAction.showToast({ message: '定位失败，请检查位置权限或到位置页手动选择' });
+        promptAction.showToast({ message: t('home.locateFailed') });
         return;
       }
       await SettingsStore.saveLocation(r.latitude, r.longitude, r.name, true);
       await this.reload();
       await this.rescheduleAll();
-      promptAction.showToast({ message: `已定位到 ${r.name}` });
+      promptAction.showToast({ message: t('home.locatedTo', [r.name]) });
     } finally {
       this.locating = false;
     }
@@ -299,8 +310,9 @@ export struct HomeView {
   /** 日期串，对齐安卓 getDateString()：10月31日 周五 */
   private dateText(): string {
     const d: Date = new Date();
-    const week: string[] = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-    return `${d.getMonth() + 1}月${d.getDate()}日 ${week[d.getDay()]}`;
+    const week: string[] = [t('home.weekSun'), t('home.weekMon'), t('home.weekTue'), t('home.weekWed'),
+      t('home.weekThu'), t('home.weekFri'), t('home.weekSat')];
+    return t('home.dateText', [d.getMonth() + 1, d.getDate(), week[d.getDay()]]);
   }
 
   /** 闹钟卡片副标题，对齐安卓 buildAlarmLabel */
@@ -310,11 +322,11 @@ export struct HomeView {
       parts.push(alarm.label);
     }
     if (alarm.isSunrise()) {
-      parts.push(`日出${this.offsetText(alarm.offsetMinutes)}`);
-      parts.push('当天');
+      parts.push(t('home.sunriseOffset', [this.offsetText(alarm.offsetMinutes)]));
+      parts.push(t('home.sameDay'));
     } else if (alarm.isSunset()) {
-      parts.push(`日落${this.offsetText(alarm.offsetMinutes)}`);
-      parts.push('当天');
+      parts.push(t('home.sunsetOffset', [this.offsetText(alarm.offsetMinutes)]));
+      parts.push(t('home.sameDay'));
     } else {
       parts.push(alarm.repeatText());
     }
@@ -325,7 +337,7 @@ export struct HomeView {
     if (min === 0) {
       return '';
     }
-    return min > 0 ? `后${min}分钟` : `前${-min}分钟`;
+    return min > 0 ? t('home.offsetAfter', [min]) : t('home.offsetBefore', [-min]);
   }
 
   /** 卡片主时间，对齐安卓：日出闹钟显示当天日出时间，日落显示日落时间 */
@@ -351,7 +363,7 @@ export struct HomeView {
             .height(16)
             .fillColor(this.colors.accent)
           Text(this.locationName.length > 0 ? this.locationName
-            : (this.locating ? '定位中...' : '点击位置设置'))
+            : (this.locating ? t('common.locating') : t('home.setLocationHint')))
             .fontSize(14)
             .fontWeight(FontWeight.Medium)
             .fontColor(this.colors.textSub)
@@ -382,7 +394,7 @@ export struct HomeView {
                 .height(20)
                 .fillColor(this.colors.accent)
               Column({ space: 2 }) {
-                Text('下一个闹钟')
+                Text(t('home.nextAlarm'))
                   .fontSize(11)
                   .fontColor(this.colors.textGray)
                 Text(this.nextAlarmText)
@@ -401,7 +413,7 @@ export struct HomeView {
 
           // ---------- 我的闹钟 ----------
           Row() {
-            Text('我的闹钟')
+            Text(t('home.myAlarms'))
               .fontSize(20)
               .fontWeight(FontWeight.Medium)
               .fontColor(this.colors.text)
@@ -428,7 +440,7 @@ export struct HomeView {
               .height(80)
           } else if (this.alarms.length === 0) {
             Column() {
-              Text('暂无闹钟，点击 + 添加')
+              Text(t('home.noAlarm'))
                 .fontSize(14)
                 .fontColor(this.colors.textGray)
             }
@@ -446,14 +458,31 @@ export struct HomeView {
                     builder: this.DeleteAction.bind(this, item)
                   }
                 })
-              }, (item: AlarmEntity) => `${item.id}-${item.enabled}-${item.hour}-${item.minute}-${item.offsetMinutes}`)
+                .onAreaChange((_old: Area, now: Area) => {
+                  // 记录真实卡片高度，供下方 List 计算自身高度
+                  const h: number = Number(now.height);
+                  if (h > 0 && Math.abs(h - this.cardHeight) > 0.5) {
+                    this.cardHeight = h;
+                  }
+                })
+              // 审核报告问题 2：添加多个闹钟后向下滑动显示不全。
+              // 旧 key 漏了 repeatDays/label/type，改重复日或标签后 ForEach
+              // 会复用旧组件，界面卡在编辑前的值。
+              }, (item: AlarmEntity) =>
+                `${item.id}-${item.enabled}-${item.type}-${item.hour}-${item.minute}` +
+                `-${item.offsetMinutes}-${item.repeatDays}-${item.label}`)
             }
             .width('100%')
-            .height(this.alarms.length * 84)
+            // 高度 = 项数 × 实测卡片高度 + 项间距(10) + 少量余量。
+            // 宁可多留几个 vp（多出来的只是底部空白），也不能少 —— 少了 List 会把
+            // 最后一条裁掉，外层 Scroll 滚到底也看不到（审核问题 2）。
+            .height(this.alarms.length * this.cardHeight +
+              Math.max(0, this.alarms.length - 1) * 10 + 12)
+            .clip(false)
             .scrollBar(BarState.Off)
           }
 
-          Row().height(24)
+          Row().height(40)
         }
         .width('100%')
         .padding({ left: 20, right: 20, top: 12 })
@@ -472,11 +501,11 @@ export struct HomeView {
   SunHeroCard() {
     Column({ space: 16 }) {
       Row() {
-        Text('今日太阳')
+        Text(t('home.sunToday'))
           .fontSize(13)
           .fontColor('#B3FFFFFF')
         Blank()
-        Text(this.polarNote.length > 0 ? this.polarNote : `白昼 ${this.daylightText}`)
+        Text(this.polarNote.length > 0 ? this.polarNote : t('home.daylight', [this.daylightText]))
           .fontSize(13)
           .fontWeight(FontWeight.Medium)
           .fontColor(this.colors.accentLight)
@@ -501,7 +530,7 @@ export struct HomeView {
 
       Row() {
         Column({ space: 2 }) {
-          Text('日出')
+          Text(t('home.sunrise'))
             .fontSize(11)
             .fontColor('#99FFFFFF')
           Text(this.sunriseText)
@@ -514,7 +543,7 @@ export struct HomeView {
         Blank()
 
         Column({ space: 2 }) {
-          Text('日落')
+          Text(t('home.sunset'))
             .fontSize(11)
             .fontColor('#99FFFFFF')
           Text(this.sunsetText)
@@ -622,7 +651,7 @@ export struct HomeView {
             .fontWeight(FontWeight.Medium)
             .fontColor(alarm.enabled ? this.colors.text : this.colors.textGray)
           if (!alarm.isRegular()) {
-            Text(alarm.isSunrise() ? '日出' : '日落')
+            Text(alarm.isSunrise() ? t('home.sunrise') : t('home.sunset'))
               .fontSize(10)
               .fontWeight(FontWeight.Medium)
               .fontColor(alarm.isSunrise() ? this.colors.accent : this.colors.red)
@@ -663,7 +692,7 @@ export struct HomeView {
    */
   @Builder
   DeleteAction(alarm: AlarmEntity) {
-    Text('删除')
+    Text(t('common.delete'))
       .fontSize(14)
       .fontColor('#FFFFFF')
       .textAlign(TextAlign.Center)

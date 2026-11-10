@@ -5,6 +5,8 @@
  * 数据库读写（relationalStore）在 AlarmRepository 里另行处理。
  */
 
+import { t } from '../common/I18n';
+
 /** 闹钟类型。数值与数据库中存储的整数一致，不要改动 */
 export enum AlarmType {
   REGULAR = 0, // 普通闹钟
@@ -17,7 +19,11 @@ export const REPEAT_EVERY_DAY: number = 0x7F;
 export const REPEAT_WEEKDAYS: number = 0x1F;
 export const REPEAT_ONCE: number = 0;
 
-const DAY_NAMES: string[] = ['一', '二', '三', '四', '五', '六', '日'];
+/** 周一 … 周日 的词典 key，下标 0 = 周一 */
+const DAY_KEYS: string[] = [
+  'alarm.dayMon', 'alarm.dayTue', 'alarm.dayWed', 'alarm.dayThu',
+  'alarm.dayFri', 'alarm.daySat', 'alarm.daySun'
+];
 
 export class AlarmEntity {
   /** 主键，0 表示尚未入库 */
@@ -73,21 +79,21 @@ export class AlarmEntity {
   /** 重复描述文本 */
   repeatText(): string {
     if (this.isEveryDay()) {
-      return '每天';
+      return t('alarm.repeatEveryDay');
     }
     if (this.isWeekdays()) {
-      return '周一至周五';
+      return t('alarm.repeatWeekdays');
     }
     if (this.repeatDays === REPEAT_ONCE) {
-      return '仅一次';
+      return t('alarm.repeatOnce');
     }
     const names: string[] = [];
     for (let i = 0; i < 7; i++) {
       if (((this.repeatDays >> i) & 1) === 1) {
-        names.push(`周${DAY_NAMES[i]}`);
+        names.push(t(DAY_KEYS[i]));
       }
     }
-    return names.join('、');
+    return names.join(t('alarm.daySeparator'));
   }
 
   /** 普通闹钟的时间文本，如 "07:30" */
@@ -99,13 +105,14 @@ export class AlarmEntity {
 
   /** 偏移描述，如 "日出前 30 分钟" / "日落后 10 分钟" */
   offsetText(): string {
-    const base: string = this.isSunrise() ? '日出' : '日落';
+    const base: string = this.isSunrise() ? t('alarm.sunrise') : t('alarm.sunset');
     const abs: number = Math.abs(this.offsetMinutes);
     if (abs === 0) {
       return base;
     }
-    const dir: string = this.offsetMinutes > 0 ? '后' : '前';
-    return `${base}${dir} ${abs} 分钟`;
+    return this.offsetMinutes > 0
+      ? t('alarm.offsetAfter', [base, abs])
+      : t('alarm.offsetBefore', [base, abs]);
   }
 
   /** 深拷贝，编辑页取消时回滚用 */

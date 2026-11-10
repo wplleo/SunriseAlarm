@@ -16,6 +16,9 @@ const KEY_AUTO_LOCATE: string = 'autoLocate';
 const KEY_ONLINE_CALIBRATE: string = 'onlineCalibrate';
 const KEY_HOUR24: string = 'hour24';
 const KEY_SAVED_LOCATIONS: string = 'savedLocations';
+/** 界面语言：'system' 跟随系统 / 'zh' 简体中文 / 'en' English */
+const KEY_LANGUAGE: string = 'language';
+export const DEFAULT_LANGUAGE: string = 'system';
 
 /** 已保存位置（对齐 Android LocationInfo） */
 export class SavedLocation {
@@ -147,6 +150,21 @@ export class SettingsStore {
   static async setHour24(enabled: boolean): Promise<void> {
     const p: preferences.Preferences = await SettingsStore.requirePrefs();
     await p.put(KEY_HOUR24, enabled);
+    await p.flush();
+  }
+
+  /** 界面语言偏好，默认 'system' 跟随系统 */
+  static getLanguage(): string {
+    const p: preferences.Preferences | null = SettingsStore.tryPrefs();
+    if (p === null) {
+      return DEFAULT_LANGUAGE;
+    }
+    return p.getSync(KEY_LANGUAGE, DEFAULT_LANGUAGE) as string;
+  }
+
+  static async setLanguage(value: string): Promise<void> {
+    const p: preferences.Preferences = await SettingsStore.requirePrefs();
+    await p.put(KEY_LANGUAGE, value);
     await p.flush();
   }
 

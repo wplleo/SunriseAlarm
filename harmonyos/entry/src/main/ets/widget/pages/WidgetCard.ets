@@ -4,6 +4,8 @@
  * 数据由 EntryFormAbility 通过 formBindingData 推过来，
  * 这里全部用 @LocalStorageProp 同名接收（卡片里不能用 @State 做外部注入）。
  */
+import { t } from '../../common/I18n';
+
 let storage = new LocalStorage();
 
 const COLOR_BG: string = '#1B1B1F';
@@ -44,7 +46,7 @@ struct WidgetCard {
 
         // ---------- 日出 ----------
         Row() {
-          Text('日出')
+          Text(t('common.sunrise'))
             .fontSize(11)
             .fontColor(COLOR_LABEL)
           Blank()
@@ -61,7 +63,7 @@ struct WidgetCard {
 
         // ---------- 日落 ----------
         Row() {
-          Text('日落')
+          Text(t('common.sunset'))
             .fontSize(11)
             .fontColor(COLOR_LABEL)
           Blank()

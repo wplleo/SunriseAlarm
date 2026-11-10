@@ -23,8 +23,10 @@ import { ReminderService } from '../service/ReminderService';
 import { AlarmTimeCalculator } from '../common/AlarmTimeCalculator';
 import { ThemeManager, ThemeColors, DARK_COLORS } from '../common/AppTheme';
 import { TimeFormat } from '../common/TimeFormat';
+import { t } from '../common/I18n';
 
-const DAY_LABELS: string[] = ['一', '二', '三', '四', '五', '六', '日'];
+/** 一~日：存 i18n key，渲染时经 t() 取文案 */
+const DAY_LABELS: string[] = ['day.mon', 'day.tue', 'day.wed', 'day.thu', 'day.fri', 'day.sat', 'day.sun'];
 
 @Entry
 @Component
@@ -96,9 +98,9 @@ struct AlarmEditPage {
   private offsetText(): string {
     const m: number = this.alarm.offsetMinutes;
     if (m === 0) {
-      return '0分钟';
+      return t('edit.offsetZero');
     }
-    return m > 0 ? `后${m}分钟` : `前${-m}分钟`;
+    return m > 0 ? t('edit.offsetAfter', [m]) : t('edit.offsetBefore', [-m]);
   }
 
   private toggleDay(index: number): void {
@@ -122,14 +124,14 @@ struct AlarmEditPage {
       }
       const uri: string = uris[0];
       const slash: number = uri.lastIndexOf('/');
-      const name: string = slash >= 0 ? uri.substring(slash + 1) : '本地音乐';
+      const name: string = slash >= 0 ? uri.substring(slash + 1) : t('sound.localMusic');
       this.alarm.soundUri = uri;
       this.alarm.soundName = name;
-      promptAction.showToast({ message: `已选择 ${name}` });
+      promptAction.showToast({ message: t('toast.musicSelected', [name]) });
     } catch (err) {
       const e: BusinessError = err as BusinessError;
       console.error(`[Edit] 选择本地音乐失败: ${e.code} ${e.message}`);
-      promptAction.showToast({ message: '文件选择器不可用' });
+      promptAction.showToast({ message: t('toast.pickerUnavailable') });
     }
   }
 
@@ -147,9 +149,14 @@ struct AlarmEditPage {
       // 这里必须把失败原因透出来，否则用户会以为闹钟已生效、实际到点不响。
       const scheduleErr: string = ReminderService.getLastError();
       if (scheduleErr.length > 0) {
-        promptAction.showToast({ message: `${this.isNew ? '已添加' : '已保存'}，但${scheduleErr}`, duration: 4000 });
+        promptAction.showToast({
+          message: this.isNew
+            ? t('toast.addedWithWarning', [scheduleErr])
+            : t('toast.savedWithWarning', [scheduleErr]),
+          duration: 4000
+        });
       } else {
-        promptAction.showToast({ message: this.isNew ? '已添加' : '已保存' });
+        promptAction.showToast({ message: this.isNew ? t('toast.added') : t('toast.saved') });
       }
       // 广播一次，让首页立刻重读列表。
       // 之前只靠 router.back() 触发 Index.onPageShow，某些场景下不生效，
@@ -159,7 +166,7 @@ struct AlarmEditPage {
       router.back();
     } catch (err) {
       const e: BusinessError = err as BusinessError;
-      promptAction.showToast({ message: `保存失败: ${e.message}` });
+      promptAction.showToast({ message: t('toast.saveFailed', [e.message]) });
     }
   }
 
@@ -181,14 +188,14 @@ struct AlarmEditPage {
 
           Blank()
 
-          Text(this.isNew ? '新建闹钟' : '编辑闹钟')
+          Text(this.isNew ? t('edit.newTitle') : t('edit.title'))
             .fontSize(18)
             .fontWeight(FontWeight.Medium)
             .fontColor(this.colors.text)
 
           Blank()
 
-          Text('保存')
+          Text(t('common.save'))
             .fontSize(15)
             .fontWeight(FontWeight.Medium)
             .fontColor(this.colors.accent)
@@ -240,11 +247,11 @@ struct AlarmEditPage {
 
             // ---------- 闹钟类型 ----------
             Column({ space: 10 }) {
-              this.SectionLabel('闹钟类型')
+              this.SectionLabel(t('edit.typeSection'))
               Row({ space: 4 }) {
-                this.TypeChip('普通闹钟', AlarmType.REGULAR)
-                this.TypeChip('日出', AlarmType.SUNRISE)
-                this.TypeChip('日落', AlarmType.SUNSET)
+                this.TypeChip(t('edit.typeRegular'), AlarmType.REGULAR)
+                this.TypeChip(t('common.sunrise'), AlarmType.SUNRISE)
+                this.TypeChip(t('common.sunset'), AlarmType.SUNSET)
               }
               .width('100%')
               .padding(4)
@@ -257,9 +264,9 @@ struct AlarmEditPage {
             // ---------- 相对偏移 ----------
             if (!this.alarm.isRegular()) {
               Column({ space: 10 }) {
-                this.SectionLabel(this.alarm.isSunrise() ? '相对于日出' : '相对于日落')
+                this.SectionLabel(this.alarm.isSunrise() ? t('edit.relSunrise') : t('edit.relSunset'))
                 Row() {
-                  Text('提前')
+                  Text(t('edit.advance'))
                     .fontSize(13)
                     .fontWeight(FontWeight.Medium)
                     .fontColor(this.colors.text)
@@ -275,7 +282,7 @@ struct AlarmEditPage {
                     .layoutWeight(1)
                     .textAlign(TextAlign.Center)
 
-                  Text('延后')
+                  Text(t('edit.delay'))
                     .fontSize(13)
                     .fontWeight(FontWeight.Medium)
                     .fontColor(this.colors.text)
@@ -292,14 +299,14 @@ struct AlarmEditPage {
 
             // ---------- 重复 ----------
             Column({ space: 10 }) {
-              this.SectionLabel('重复')
+              this.SectionLabel(t('edit.repeat'))
               Row() {
                 ForEach(DAY_LABELS, (label: string, index: number) => {
                   Stack() {
                     Circle({ width: 40, height: 40 })
                       .fill((this.alarm.repeatDays & (1 << index)) !== 0
                         ? this.colors.accent : this.colors.cardHover)
-                    Text(label)
+                    Text(t(label))
                       .fontSize(13)
                       .fontWeight(FontWeight.Medium)
                       .fontColor('#FFFFFF')
@@ -317,8 +324,8 @@ struct AlarmEditPage {
 
             // ---------- 标签 ----------
             Column({ space: 10 }) {
-              this.SectionLabel('标签')
-              TextInput({ text: this.alarm.label, placeholder: '给闹钟起个名字' })
+              this.SectionLabel(t('edit.labelSection'))
+              TextInput({ text: this.alarm.label, placeholder: t('edit.labelPlaceholder') })
                 .placeholderColor(this.colors.textGray)
                 .fontSize(15)
                 .fontColor(this.colors.text)
@@ -335,13 +342,13 @@ struct AlarmEditPage {
 
             // ---------- 铃声 ----------
             Column({ space: 10 }) {
-              this.SectionLabel('铃声')
+              this.SectionLabel(t('edit.soundSection'))
               Row() {
-                Text('铃声')
+                Text(t('edit.sound'))
                   .fontSize(15)
                   .fontColor(this.colors.text)
                 Blank()
-                Text(this.alarm.soundName.length > 0 ? this.alarm.soundName : '默认铃声')
+                Text(this.alarm.soundName.length > 0 ? this.alarm.soundName : t('sound.default'))
                   .fontSize(14)
                   .fontColor(this.colors.textGray)
                 Text('>')
@@ -362,7 +369,7 @@ struct AlarmEditPage {
             // ---------- 开关 ----------
             Column() {
               Row() {
-                Text('稍后提醒')
+                Text(t('common.snooze'))
                   .fontSize(15)
                   .fontColor(this.colors.text)
                 Blank()
@@ -381,7 +388,7 @@ struct AlarmEditPage {
                 .margin({ left: 16, right: 16 })
 
               Row() {
-                Text('振动')
+                Text(t('edit.vibrate'))
                   .fontSize(15)
                   .fontColor(this.colors.text)
                 Blank()
@@ -409,7 +416,7 @@ struct AlarmEditPage {
 
         // ---------- 底部保存按钮 ----------
         Row() {
-          Text('保存闹钟')
+          Text(t('edit.saveButton'))
             .fontSize(16)
             .fontWeight(FontWeight.Medium)
             .fontColor('#FFFFFF')
@@ -474,12 +481,12 @@ struct AlarmEditPage {
     Column() {
       Column() {
         Row() {
-          Text('选择铃声')
+          Text(t('sound.dialogTitle'))
             .fontSize(16)
             .fontWeight(FontWeight.Medium)
             .fontColor(this.colors.text)
           Blank()
-          Text(`当前: ${this.alarm.soundName.length > 0 ? this.alarm.soundName : '默认铃声'}`)
+          Text(t('sound.current', [this.alarm.soundName.length > 0 ? this.alarm.soundName : t('sound.default')]))
             .fontSize(11)
             .fontColor(this.colors.textGray)
             .maxLines(1)
@@ -487,16 +494,18 @@ struct AlarmEditPage {
         .width('100%')
         .padding({ left: 20, right: 20, top: 14, bottom: 12 })
 
-        this.SoundOption('默认铃声', '系统默认闹钟铃声', () => {
-          this.alarm.soundName = '默认铃声';
+        this.SoundOption(t('sound.default'), t('sound.defaultDesc'), () => {
+          // 存空串表示「默认铃声」，显示时再本地化。
+          // 不能把 t('sound.default') 的译文写进数据库 —— 换语言后会残留旧语种。
+          this.alarm.soundName = '';
           this.alarm.soundUri = '';
           this.showSoundDialog = false;
         })
-        this.SoundOption('系统铃声', '从系统铃声库中选择', () => {
+        this.SoundOption(t('sound.system'), t('sound.systemDesc'), () => {
           this.showSoundDialog = false;
-          promptAction.showToast({ message: '系统不开放铃声库，请用「本地音乐」选择' });
+          promptAction.showToast({ message: t('toast.ringLibraryUnavailable') });
         })
-        this.SoundOption('本地音乐', '从手机文件中选择音乐', () => {
+        this.SoundOption(t('sound.localMusic'), t('sound.localMusicDesc'), () => {
           this.pickLocalMusic();
         })
 

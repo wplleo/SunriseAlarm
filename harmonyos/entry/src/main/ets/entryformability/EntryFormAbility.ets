@@ -13,6 +13,7 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { SunriseSunsetCalculator, SunTimes } from '../common/SunriseSunsetCalculator';
 import { DEFAULT_LATITUDE, DEFAULT_LONGITUDE, DEFAULT_LOCATION_NAME } from '../data/SettingsStore';
+import { t } from '../common/I18n';
 
 const DOMAIN: number = 0x0000;
 const TAG: string = 'SunriseAlarm';
@@ -36,13 +37,13 @@ function formatMinutes(totalMinutes: number, hour24: boolean): string {
     return `${pad2(h)}:${pad2(m)}`;
   }
   const h12: number = h % 12 === 0 ? 12 : h % 12;
-  return `${h < 12 ? '上午' : '下午'}${h12}:${pad2(m)}`;
+  return `${h < 12 ? t('common.am') : t('common.pm')}${h12}:${pad2(m)}`;
 }
 
 function durationText(minutes: number): string {
   const h: number = Math.floor(minutes / 60);
   const m: number = minutes % 60;
-  return m === 0 ? `${h}小时` : `${h}小时${m}分`;
+  return m === 0 ? t('widget.durationHour', [h]) : t('widget.durationHourMin', [h, m]);
 }
 
 /** 卡片绑定数据：卡片里用 @LocalStorageProp 同名取用 */
@@ -70,7 +71,7 @@ function buildFormData(context: common.Context): Record<string, string> {
       'city': locationName,
       'sunrise': '--:--',
       'sunset': '--:--',
-      'daylight': '极昼 / 极夜',
+      'daylight': t('widget.polar'),
       'daylightLabel': ''
     };
   }
@@ -80,7 +81,7 @@ function buildFormData(context: common.Context): Record<string, string> {
     'sunrise': formatMinutes(sun.sunriseMinutes, hour24),
     'sunset': formatMinutes(sun.sunsetMinutes, hour24),
     'daylight': durationText(sun.daylightMinutes),
-    'daylightLabel': '白天'
+    'daylightLabel': t('widget.daylight')
   };
 }
 

@@ -15,6 +15,8 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { SettingsStore, SavedLocation } from '../data/SettingsStore';
 import { LocationService, LocationResult } from '../service/LocationService';
 import { ThemeManager, ThemeColors, DARK_COLORS } from '../common/AppTheme';
+import { t } from '../common/I18n';
+import { PrivacyConsent } from '../common/PrivacyConsent';
 
 @Component
 export struct LocationView {
@@ -32,6 +34,8 @@ export struct LocationView {
   @State searchResults: LocationResult[] = [];
   @State saved: SavedLocation[] = [];
   @State message: string = '';
+  /** 提示消息是否为错误态；原先靠中文关键字（失败/未找到…）判断，多语言后改为显式标记 */
+  @State messageError: boolean = false;
   @State colors: ThemeColors = DARK_COLORS;
 
   // ---- 手动输入经纬度弹窗 ----
@@ -80,20 +84,32 @@ export struct LocationView {
     }
     this.isLocating = true;
     this.message = '';
+    this.messageError = false;
     try {
       const r: LocationResult | null = await LocationService.getCurrentLocation(this.context);
       if (r === null) {
-        this.message = '定位失败，请检查位置权限';
+        // 失败原因分流：别再一律甩锅给「权限」——
+        // 审核问题 1-5 就是权限明明开着却提示「请检查权限」，把用户带偏。
+        if (!PrivacyConsent.isAgreed()) {
+          this.message = t('home.needPrivacy');
+        } else if (!await LocationService.hasPermission(this.context)) {
+          this.message = t('location.locateDenied');
+        } else {
+          this.message = t('location.locateNoFix');
+        }
+        this.messageError = true;
         return;
       }
       await SettingsStore.saveLocation(r.latitude, r.longitude, r.name, true);
       await SettingsStore.addSavedLocation(new SavedLocation(r.name, r.latitude, r.longitude, true));
       this.isAutoLocated = true;
       this.reload();
-      this.message = `定位成功：${r.name}`;
+      this.message = t('location.locateSuccess', [r.name]);
+      this.messageError = false;
     } catch (err) {
       const e: BusinessError = err as BusinessError;
-      this.message = '定位失败，请检查位置权限';
+      this.message = t('location.locateFailed');
+      this.messageError = true;
       console.error(`[Location] 定位异常: ${e.code} ${e.message}`);
     } finally {
       this.isLocating = false;
@@ -104,21 +120,25 @@ export struct LocationView {
   async doSearch(): Promise<void> {
     const q: string = this.searchQuery.trim();
     if (q.length === 0) {
-      this.message = '请输入搜索内容';
+      this.message = t('location.searchEmpty');
+      this.messageError = false;
       return;
     }
     this.isSearching = true;
     this.message = '';
+    this.messageError = false;
     this.searchResults = [];
     try {
       const r: LocationResult[] = await LocationService.searchCities(q);
       this.searchResults = r;
       if (r.length === 0) {
-        this.message = `未找到「${q}」，换个关键词试试`;
+        this.message = t('location.searchNoResult', [q]);
+        this.messageError = true;
       }
     } catch (err) {
       const e: BusinessError = err as BusinessError;
-      this.message = '搜索失败，请稍后再试';
+      this.message = t('location.searchFailed');
+      this.messageError = true;
       console.error(`[Location] 搜索异常: ${e.code} ${e.message}`);
     } finally {
       this.isSearching = false;
@@ -132,11 +152,13 @@ export struct LocationView {
       await SettingsStore.addSavedLocation(new SavedLocation(name, lat, lon, isAuto));
       this.searchResults = [];
       this.searchQuery = '';
-      this.message = `已切换到 ${name}`;
+      this.message = t('location.switched', [name]);
+      this.messageError = false;
       this.reload();
     } catch (err) {
       const e: BusinessError = err as BusinessError;
-      this.message = '保存位置失败';
+      this.message = t('location.saveFailed');
+      this.messageError = true;
       console.error(`[Location] 切换位置失败: ${e.code} ${e.message}`);
     }
   }
@@ -146,22 +168,22 @@ export struct LocationView {
     const lat: number = Number.parseFloat(this.manualLat);
     const lon: number = Number.parseFloat(this.manualLon);
     if (Number.isNaN(lat)) {
-      this.manualError = '纬度格式不正确';
+      this.manualError = t('location.errLatFormat');
       return;
     }
     if (lat < -90 || lat > 90) {
-      this.manualError = '纬度范围为 -90 ~ 90';
+      this.manualError = t('location.errLatRange');
       return;
     }
     if (Number.isNaN(lon)) {
-      this.manualError = '经度格式不正确';
+      this.manualError = t('location.errLonFormat');
       return;
     }
     if (lon < -180 || lon > 180) {
-      this.manualError = '经度范围为 -180 ~ 180';
+      this.manualError = t('location.errLonRange');
       return;
     }
-    const name: string = this.manualName.trim().length > 0 ? this.manualName.trim() : '自定义位置';
+    const name: string = this.manualName.trim().length > 0 ? this.manualName.trim() : t('location.customPlace');
     this.showManual = false;
     this.manualError = '';
     await this.selectLocation(lat, lon, name, false);
@@ -172,7 +194,7 @@ export struct LocationView {
       Column() {
         // ---------- 标题栏 ----------
         Row() {
-          Text('位置设置')
+          Text(t('location.title'))
             .fontSize(20)
             .fontWeight(FontWeight.Medium)
             .fontColor(this.colors.text)
@@ -185,7 +207,7 @@ export struct LocationView {
             // ---------- 当前位置卡 ----------
             Column({ space: 16 }) {
               Row() {
-                Text('当前位置')
+                Text(t('location.current'))
                   .fontSize(13)
                   .fontWeight(FontWeight.Medium)
                   .fontColor(this.colors.textGray)
@@ -193,10 +215,10 @@ export struct LocationView {
                 if (this.isLocating) {
                   Row({ space: 6 }) {
                     LoadingProgress().width(14).height(14).color(this.colors.accent)
-                    Text('定位中...').fontSize(12).fontColor(this.colors.accent)
+                    Text(t('location.locatingText')).fontSize(12).fontColor(this.colors.accent)
                   }
                 } else if (this.isAutoLocated) {
-                  Text('已定位')
+                  Text(t('location.located'))
                     .fontSize(10)
                     .fontWeight(FontWeight.Medium)
                     .fontColor(this.colors.green)
@@ -207,7 +229,7 @@ export struct LocationView {
               }
               .width('100%')
 
-              Text(this.currentName.length > 0 ? this.currentName : '未知位置')
+              Text(this.currentName.length > 0 ? this.currentName : t('location.unknown'))
                 .fontSize(28)
                 .fontWeight(FontWeight.Medium)
                 .fontColor(this.colors.text)
@@ -223,7 +245,7 @@ export struct LocationView {
                   .width(16)
                   .height(16)
                   .fillColor(this.colors.accent)
-                Text('重新定位')
+                Text(t('location.relocate'))
                   .fontSize(14)
                   .fontWeight(FontWeight.Medium)
                   .fontColor(this.colors.accent)
@@ -247,11 +269,11 @@ export struct LocationView {
                   .height(28)
                   .fillColor(this.colors.accent)
                 Column({ space: 2 }) {
-                  Text('自动定位')
+                  Text(t('location.autoLocate'))
                     .fontSize(15)
                     .fontWeight(FontWeight.Medium)
                     .fontColor(this.colors.text)
-                  Text('根据GPS自动更新位置')
+                  Text(t('location.autoLocateDesc'))
                     .fontSize(12)
                     .fontColor(this.colors.textGray)
                 }
@@ -274,7 +296,7 @@ export struct LocationView {
             // ---------- 手动选择位置 ----------
             Column({ space: 10 }) {
               Row() {
-                Text('手动选择位置')
+                Text(t('location.manualSelect'))
                   .fontSize(13)
                   .fontWeight(FontWeight.Medium)
                   .fontColor(this.colors.textGray)
@@ -286,7 +308,7 @@ export struct LocationView {
                   .width(18)
                   .height(18)
                   .fillColor(this.colors.textGray)
-                TextInput({ text: this.searchQuery, placeholder: '搜索城市、地区' })
+                TextInput({ text: this.searchQuery, placeholder: t('location.searchPlaceholder') })
                   .placeholderColor(this.colors.textGray)
                   .fontSize(15)
                   .fontColor(this.colors.text)
@@ -299,7 +321,7 @@ export struct LocationView {
                 if (this.isSearching) {
                   LoadingProgress().width(20).height(20).color(this.colors.accent)
                 } else if (this.searchQuery.length > 0) {
-                  Text('搜索')
+                  Text(t('location.searchButton'))
                     .fontSize(14)
                     .fontWeight(FontWeight.Medium)
                     .fontColor(this.colors.accent)
@@ -316,7 +338,7 @@ export struct LocationView {
               if (this.isSearching) {
                 Row({ space: 8 }) {
                   LoadingProgress().width(16).height(16).color(this.colors.accent)
-                  Text('搜索中...').fontSize(13).fontColor(this.colors.textGray)
+                  Text(t('location.searching')).fontSize(13).fontColor(this.colors.textGray)
                 }
                 .width('100%')
                 .justifyContent(FlexAlign.Center)
@@ -356,7 +378,7 @@ export struct LocationView {
             // ---------- 已保存位置 ----------
             Column({ space: 10 }) {
               Row() {
-                Text('已保存位置')
+                Text(t('location.savedPlaces'))
                   .fontSize(13)
                   .fontWeight(FontWeight.Medium)
                   .fontColor(this.colors.textGray)
@@ -364,7 +386,7 @@ export struct LocationView {
               .width('100%')
 
               if (this.saved.length === 0) {
-                Text('暂无保存的位置')
+                Text(t('location.noSaved'))
                   .fontSize(13)
                   .fontColor(this.colors.textGray)
                   .width('100%')
@@ -381,7 +403,7 @@ export struct LocationView {
             // ---------- 手动输入经纬度 ----------
             Column({ space: 10 }) {
               Row() {
-                Text('手动输入经纬度')
+                Text(t('location.manualEntry'))
                   .fontSize(13)
                   .fontWeight(FontWeight.Medium)
                   .fontColor(this.colors.textGray)
@@ -394,7 +416,7 @@ export struct LocationView {
                     .width(24)
                     .height(24)
                     .fillColor(this.colors.textGray)
-                  Text('手动输入经纬度')
+                  Text(t('location.manualEntry'))
                     .fontSize(15)
                     .fontColor(this.colors.text)
                 }
@@ -450,9 +472,13 @@ export struct LocationView {
     .height('100%')
   }
 
+  /**
+   * 是否错误提示。
+   * 原先是靠 indexOf('失败') 之类的中文关键字判断 —— 一旦切到英文界面就永远判定为 false，
+   * 红色提示会变成绿的。改成读 messageError 标志，与语言无关。
+   */
   private isError(): boolean {
-    return this.message.indexOf('失败') >= 0 || this.message.indexOf('未找到') >= 0 ||
-      this.message.indexOf('不正确') >= 0 || this.message.indexOf('范围') >= 0;
+    return this.messageError;
   }
 
   @Builder
@@ -468,7 +494,7 @@ export struct LocationView {
             .fontSize(15)
             .fontWeight(FontWeight.Medium)
             .fontColor(this.colors.text)
-          Text(this.currentName === loc.name ? '当前使用' : this.coordText(loc.latitude, loc.longitude))
+          Text(this.currentName === loc.name ? t('location.inUse') : this.coordText(loc.latitude, loc.longitude))
             .fontSize(12)
             .fontColor(this.currentName === loc.name ? this.colors.green : this.colors.textGray)
         }
@@ -494,18 +520,18 @@ export struct LocationView {
   ManualDialog() {
     Column() {
       Column({ space: 16 }) {
-        Text('手动输入经纬度')
+        Text(t('location.manualEntry'))
           .fontSize(18)
           .fontWeight(FontWeight.Medium)
           .fontColor(this.colors.text)
           .width('100%')
 
         Column({ space: 6 }) {
-          Text('位置名称（可选）')
+          Text(t('location.manualNameLabel'))
             .fontSize(13)
             .fontColor(this.colors.textGray)
             .width('100%')
-          TextInput({ text: this.manualName, placeholder: '如：我的家乡' })
+          TextInput({ text: this.manualName, placeholder: t('location.manualNameHint') })
             .placeholderColor(this.colors.textGray)
             .fontSize(15)
             .fontColor(this.colors.text)
@@ -517,11 +543,11 @@ export struct LocationView {
         .width('100%')
 
         Column({ space: 6 }) {
-          Text('纬度（-90 ~ 90）')
+          Text(t('location.latLabel'))
             .fontSize(13)
             .fontColor(this.colors.textGray)
             .width('100%')
-          TextInput({ text: this.manualLat, placeholder: '如：39.9042' })
+          TextInput({ text: this.manualLat, placeholder: t('location.latHint') })
             .type(InputType.NUMBER_DECIMAL)
             .placeholderColor(this.colors.textGray)
             .fontSize(15)
@@ -534,11 +560,11 @@ export struct LocationView {
         .width('100%')
 
         Column({ space: 6 }) {
-          Text('经度（-180 ~ 180）')
+          Text(t('location.lonLabel'))
             .fontSize(13)
             .fontColor(this.colors.textGray)
             .width('100%')
-          TextInput({ text: this.manualLon, placeholder: '如：116.4074' })
+          TextInput({ text: this.manualLon, placeholder: t('location.lonHint') })
             .type(InputType.NUMBER_DECIMAL)
             .placeholderColor(this.colors.textGray)
             .fontSize(15)
@@ -558,7 +584,7 @@ export struct LocationView {
         }
 
         Row({ space: 12 }) {
-          Text('取消')
+          Text(t('common.cancel'))
             .fontSize(16)
             .fontColor(this.colors.textGray)
             .textAlign(TextAlign.Center)
@@ -568,7 +594,7 @@ export struct LocationView {
             .backgroundColor(this.colors.cardHover)
             .onClick(() => { this.showManual = false; })
 
-          Text('确定')
+          Text(t('common.confirm'))
             .fontSize(16)
             .fontWeight(FontWeight.Medium)
             .fontColor(this.colors.onAccent)
