@@ -8,6 +8,8 @@ import { geoLocationManager } from '@kit.LocationKit';
 import { abilityAccessCtrl, common, Permissions } from '@kit.AbilityKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { PrivacyConsent } from '../common/PrivacyConsent';
+import { Locale } from '../common/I18n';
+import { SettingsStore, SavedLocation } from '../data/SettingsStore';
 
 /** 定位结果 */
 export class LocationResult {
@@ -115,6 +117,38 @@ const CITY_TABLE: CityEntry[] = [
   new CityEntry('迪拜', 25.2048, 55.2708, 'dubai 阿联酋')
 ];
 
+/**
+ * 城市中文名 → 英文名（离线兜底）
+ *
+ * 系统地名解析会按 locale 返回对应语言，但部分地区/机型只返回中文。
+ * 英文界面下如果拿到的还是中文，就用这张表换掉 —— 至少主要城市不会中英混排。
+ * 表里没有的（小城市、区县）保持原样，总比显示成经纬度强。
+ */
+const CITY_EN: Map<string, string> = new Map<string, string>([
+  ['北京', 'Beijing'], ['上海', 'Shanghai'], ['广州', 'Guangzhou'], ['深圳', 'Shenzhen'],
+  ['杭州', 'Hangzhou'], ['成都', 'Chengdu'], ['重庆', 'Chongqing'], ['武汉', 'Wuhan'],
+  ['西安', "Xi'an"], ['南京', 'Nanjing'], ['天津', 'Tianjin'], ['苏州', 'Suzhou'],
+  ['长沙', 'Changsha'], ['郑州', 'Zhengzhou'], ['青岛', 'Qingdao'], ['沈阳', 'Shenyang'],
+  ['大连', 'Dalian'], ['哈尔滨', 'Harbin'], ['长春', 'Changchun'], ['济南', 'Jinan'],
+  ['合肥', 'Hefei'], ['福州', 'Fuzhou'], ['厦门', 'Xiamen'], ['南昌', 'Nanchang'],
+  ['昆明', 'Kunming'], ['贵阳', 'Guiyang'], ['南宁', 'Nanning'], ['海口', 'Haikou'],
+  ['三亚', 'Sanya'], ['兰州', 'Lanzhou'], ['西宁', 'Xining'], ['银川', 'Yinchuan'],
+  ['乌鲁木齐', 'Urumqi'], ['拉萨', 'Lhasa'], ['呼和浩特', 'Hohhot'], ['太原', 'Taiyuan'],
+  ['石家庄', 'Shijiazhuang'], ['宁波', 'Ningbo'], ['温州', 'Wenzhou'], ['无锡', 'Wuxi'],
+  ['佛山', 'Foshan'], ['东莞', 'Dongguan'], ['珠海', 'Zhuhai'], ['桂林', 'Guilin'],
+  ['洛阳', 'Luoyang'], ['烟台', 'Yantai'], ['威海', 'Weihai'], ['喀什', 'Kashgar'],
+  ['漠河', 'Mohe'], ['黑河', 'Heihe'],
+  ['香港', 'Hong Kong, China'], ['澳门', 'Macao, China'], ['台北', 'Taipei, China'],
+  ['东京', 'Tokyo'], ['首尔', 'Seoul'], ['新加坡', 'Singapore'], ['曼谷', 'Bangkok'],
+  ['悉尼', 'Sydney'], ['伦敦', 'London'], ['巴黎', 'Paris'], ['纽约', 'New York'],
+  ['洛杉矶', 'Los Angeles'], ['温哥华', 'Vancouver'], ['莫斯科', 'Moscow'], ['迪拜', 'Dubai']
+]);
+
+/** 判断字符串里是否含中日韩字符 —— 有就说明地名没被本地化成英文 */
+const CJK_RE: RegExp = new RegExp('[\\u4e00-\\u9fa5]');
+/** 行政区划后缀，查英文名前先去掉：「北京市」→「北京」 */
+const CITY_SUFFIX_RE: RegExp = new RegExp('[市县区旗盟]$');
+
 export class LocationService {
 
   /** 动态申请定位权限，返回是否已授权 */
@@ -174,40 +208,157 @@ export class LocationService {
     }
   }
 
-  /** 逆地理编码：坐标 → 城市名。不可用时返回坐标文本 */
+  /**
+   * 逆地理编码：坐标 → 地名。拿不到时回落成坐标文本。
+   */
   static async reverseGeocode(latitude: number, longitude: number): Promise<string> {
-    const fallback: string = `${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°`;
+    const name: string | null = await LocationService.reverseGeocodeRaw(latitude, longitude);
+    if (name !== null) {
+      return name;
+    }
+    return `${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°`;
+  }
+
+  /**
+   * 逆地理编码的原始实现：拿不到地名返回 null。
+   *
+   * 拆出来是因为「重刷已存地名」不能接受坐标文本 —— 那会把好好一个「北京」
+   * 覆盖成「39.90°, 116.41°」，宁可保留旧值。
+   */
+  private static async reverseGeocodeRaw(latitude: number, longitude: number): Promise<string | null> {
     try {
       if (!geoLocationManager.isGeocoderAvailable()) {
-        return fallback;
+        return null;
       }
+      return await LocationService.reverseGeocodeAt(latitude, longitude, Locale.geocodeLocale());
+    } catch (err) {
+      const e: BusinessError = err as BusinessError;
+      console.warn(`[LocationService] 逆地理编码失败: ${e.code} ${e.message}`);
+      return null;
+    }
+  }
+
+  private static async reverseGeocodeAt(latitude: number, longitude: number,
+    localeTag: string): Promise<string | null> {
+    try {
       const reverseGeocodeRequest: geoLocationManager.ReverseGeoCodeRequest = {
         latitude: latitude,
         longitude: longitude,
-        maxItems: 1
+        maxItems: 1,
+        // 注意：这里只认纯语言码。实测传 'en-US' 系统照旧返回「东营市」，
+        // 传 'en' 才返回 'Dongying'（'zh-CN' 反而正常，所以只有英文侧会踩这个坑）。
+        locale: localeTag
       };
       const addresses: Array<geoLocationManager.GeoAddress> =
         await geoLocationManager.getAddressesFromLocation(reverseGeocodeRequest);
       if (addresses.length === 0) {
-        return fallback;
+        return null;
       }
       const addr: geoLocationManager.GeoAddress = addresses[0];
       // 优先取城市，其次区县，最后街道
+      let name: string = '';
       if (addr.locality && addr.locality.length > 0) {
-        return addr.locality;
+        name = addr.locality;
+      } else if (addr.subLocality && addr.subLocality.length > 0) {
+        name = addr.subLocality;
+      } else if (addr.placeName && addr.placeName.length > 0) {
+        name = addr.placeName;
       }
-      if (addr.subLocality && addr.subLocality.length > 0) {
-        return addr.subLocality;
+      if (name.length === 0) {
+        return null;
       }
-      if (addr.placeName && addr.placeName.length > 0) {
-        return addr.placeName;
-      }
-      return fallback;
+      return Locale.isZh() ? name : LocationService.toEnglishName(name);
     } catch (err) {
       const e: BusinessError = err as BusinessError;
       console.warn(`[LocationService] 逆地理编码失败: ${e.code} ${e.message}`);
-      return fallback;
+      return null;
     }
+  }
+
+  /**
+   * 英文界面下的地名兜底。
+   *
+   * 系统地名服务不一定真的按 locale 返回英文（部分机型/地区仍返回中文），
+   * 这里再兜一层：已经是英文就直接用；还是中文就去后缀查 CITY_EN，查不到保持原样。
+   */
+  private static toEnglishName(name: string): string {
+    if (!CJK_RE.test(name)) {
+      return name;
+    }
+    const stripped: string = name.replace(CITY_SUFFIX_RE, '');
+    const hit: string | undefined = CITY_EN.get(stripped);
+    return hit !== undefined ? hit : name;
+  }
+
+  /**
+   * 已存地名和当前界面语言是否对不上（英文界面挂着中文名，或反之）。
+   *
+   * 先用它挡一道，绝大多数情况（语言没变过）连系统调用都不用发。
+   */
+  private static nameMismatch(name: string): boolean {
+    if (name.length === 0) {
+      return false;
+    }
+    const cjk: boolean = CJK_RE.test(name);
+    return Locale.isZh() ? !cjk : cjk;
+  }
+
+  /**
+   * 切换语言后重刷已存地名。
+   *
+   * 地名是「定位那一刻按当时的语言」解析好写进 Preferences 的，切语言它不会自己变，
+   * 不重刷的话英文界面会一直挂着「北京」。拿不到新地名时保留旧值，绝不写回坐标文本。
+   *
+   * @returns 是否有名字真的变了（变了调用方要刷新界面）
+   */
+  static async localizeStoredNames(): Promise<boolean> {
+    let changed: boolean = false;
+
+    // ---- 1) 当前位置 ----
+    const lat: number = SettingsStore.getLatitude();
+    const lng: number = SettingsStore.getLongitude();
+    if ((lat !== 0 || lng !== 0) && LocationService.nameMismatch(SettingsStore.getLocationName())) {
+      const fresh: string | null = await LocationService.reverseGeocodeRaw(lat, lng);
+      if (fresh !== null && fresh !== SettingsStore.getLocationName()) {
+        try {
+          await SettingsStore.saveLocation(lat, lng, fresh, SettingsStore.isAutoLocate());
+          changed = true;
+        } catch (err) {
+          const e: BusinessError = err as BusinessError;
+          console.warn(`[LocationService] 重刷当前位置名失败: ${e.code} ${e.message}`);
+        }
+      }
+    }
+
+    // ---- 2) 已保存地点 ----
+    const saved: SavedLocation[] = SettingsStore.getSavedLocations();
+    if (saved.length > 0) {
+      const next: SavedLocation[] = [];
+      let renamed: boolean = false;
+      for (const it of saved) {
+        let name: string = it.name;
+        if (LocationService.nameMismatch(it.name)) {
+          const fresh: string | null =
+            await LocationService.reverseGeocodeRaw(it.latitude, it.longitude);
+          if (fresh !== null && fresh !== it.name) {
+            name = fresh;
+            renamed = true;
+          }
+        }
+        next.push(new SavedLocation(name, it.latitude, it.longitude, it.isAuto));
+      }
+      if (renamed) {
+        try {
+          await SettingsStore.replaceSavedLocations(next);
+          changed = true;
+        } catch (err) {
+          const e: BusinessError = err as BusinessError;
+          console.warn(`[LocationService] 重刷已保存地点名失败: ${e.code} ${e.message}`);
+        }
+      }
+    }
+
+    return changed;
   }
 
   /**
@@ -237,7 +388,9 @@ export class LocationService {
     // 1) 内置城市表
     for (const c of CITY_TABLE) {
       if (c.name.indexOf(q) >= 0 || c.keys.indexOf(qLower) >= 0) {
-        pushUnique(c.name, c.lat, c.lng);
+        // 英文界面下结果也显示英文，否则搜出来一排中文
+        const display: string = Locale.isZh() ? c.name : LocationService.toEnglishName(c.name);
+        pushUnique(display, c.lat, c.lng);
       }
     }
 
@@ -245,12 +398,17 @@ export class LocationService {
     if (out.length < 5) {
       try {
         if (geoLocationManager.isGeocoderAvailable()) {
-          const req: geoLocationManager.GeoCodeRequest = { description: q, maxItems: 5 };
+          const req: geoLocationManager.GeoCodeRequest = {
+            description: q,
+            maxItems: 5,
+            locale: Locale.geocodeLocale()
+          };
           const addrs: Array<geoLocationManager.GeoAddress> =
             await geoLocationManager.getAddressesFromLocationName(req);
           for (const a of addrs) {
-            const name: string = (a.locality && a.locality.length > 0) ? a.locality
+            const raw: string = (a.locality && a.locality.length > 0) ? a.locality
               : ((a.placeName && a.placeName.length > 0) ? a.placeName : q);
+            const name: string = Locale.isZh() ? raw : LocationService.toEnglishName(raw);
             const lat: number = Number(a.latitude ?? 0);
             const lng: number = Number(a.longitude ?? 0);
             if (lat === 0 && lng === 0) {

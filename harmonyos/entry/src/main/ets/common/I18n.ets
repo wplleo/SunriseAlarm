@@ -470,6 +470,17 @@ export class Locale {
   static tag(): string {
     return Locale.isZh() ? 'zh' : 'en';
   }
+
+  /**
+   * 系统地名解析（逆地理编码）要用的语言标签。
+   *
+   * 只传纯语言码：实测传 'en-US' 时系统照旧返回中文地名「东营市」，
+   * 传 'en' 才返回 'Dongying'。中文侧 'zh' / 'zh-CN' 都正常，
+   * 所以只有英文这一侧必须避开带地区的写法。
+   */
+  static geocodeLocale(): string {
+    return Locale.isZh() ? 'zh' : 'en';
+  }
 }
 
 /**

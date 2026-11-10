@@ -17,6 +17,7 @@ import { HomeView } from '../views/HomeView';
 import { LocationView } from '../views/LocationView';
 import { SettingsView } from '../views/SettingsView';
 import { t, Locale } from '../common/I18n';
+import { LocationService } from '../service/LocationService';
 
 const PAGE_HOME: number = 0;
 const PAGE_LOCATION: number = 1;
@@ -100,6 +101,16 @@ struct Index {
     this.navTabs = makeTabDefs();
     const lv: number = AppStorage.get<number>('langVersion') ?? 0;
     AppStorage.setOrCreate<number>('langVersion', lv + 1);
+    // 上次可能是别的语言留下的地名（比如英文界面挂了个「北京」），启动顺手校一次。
+    // 内部先比对字符集，语言没变过就一个系统调用都不发。
+    LocationService.localizeStoredNames().then((changed: boolean) => {
+      if (changed) {
+        this.homeTick = this.homeTick + 1;
+        this.locTick = this.locTick + 1;
+      }
+    }).catch((err: BusinessError) => {
+      console.warn(`[Index] 启动重刷地名失败: ${err.code} ${err.message}`);
+    });
     this.privacyAgreed = PrivacyConsent.isAgreed();
     if (!this.privacyAgreed) {
       this.showPrivacy = true;
@@ -124,6 +135,16 @@ struct Index {
     this.setTick = this.setTick + 1;
     // 换一个全新的数组引用，ForEach 才会重新 diff 出新的 label
     this.navTabs = makeTabDefs();
+    // 地名是定位那一刻按当时的语言解析好写进 Preferences 的，切语言不会自己变，
+    // 这里按新语言重刷一遍；真变了才刷新界面，没变就别白重绘。
+    LocationService.localizeStoredNames().then((changed: boolean) => {
+      if (changed) {
+        this.homeTick = this.homeTick + 1;
+        this.locTick = this.locTick + 1;
+      }
+    }).catch((err: BusinessError) => {
+      console.warn(`[Index] 重刷地名失败: ${err.code} ${err.message}`);
+    });
   }
 
   /** 设置页切换主题 -> 刷新自己的配色（导航条用它），三页各自重取一次颜色 */

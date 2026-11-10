@@ -212,4 +212,14 @@ export class SettingsStore {
     const list: SavedLocation[] = SettingsStore.getSavedLocations().filter((x: SavedLocation) => x.name !== name);
     await SettingsStore.writeSaved(list);
   }
+
+  /**
+   * 整表覆盖已保存地点。
+   *
+   * 给「切语言后重刷地名」用：地名是收藏项的 key，逐条改名会撞名字冲突，
+   * 只能一次性替换整份列表。
+   */
+  static async replaceSavedLocations(list: SavedLocation[]): Promise<void> {
+    await SettingsStore.writeSaved(list);
+  }
 }
