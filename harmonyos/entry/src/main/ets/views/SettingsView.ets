@@ -1,11 +1,16 @@
 /**
  * 设置页内容 —— 与 Android 版 SettingsScreen.kt 一一对应
  *
- * 结构完全照搬安卓：
+ * 结构：
  *  1. 标题「设置」（20sp Semibold，左对齐，没有返回按钮——安卓是底部 Tab 切换）
- *  2. 「外观」：深色模式 / 浅色模式 / 跟随系统，带圆形图标 + 右侧实心圆点指示器
- *  3. 「关于」：版本 / 应用名称 / 日出日落算法 三行
- *  4. 底部提示：长按闹钟卡片可以编辑闹钟
+ *  2. 「外观」卡片（可折叠）：标题行显示当前主题名 + 箭头，展开后是
+ *     深色 / 浅色 / 跟随系统 三行（圆形图标 + 右侧实心圆点指示器）
+ *  3. 「语言」卡片（可折叠）：结构同外观，展开后是 跟随系统 / 简体中文 / English
+ *  4. 「关于」卡片：版本 / 应用名称 / 日出日落算法 三行，纯展示不折叠
+ *  5. 底部提示：长按闹钟卡片可以编辑闹钟
+ *
+ * 外观和语言默认收起 —— 这两项日常几乎不改，收起后整页只剩三行摘要，
+ * 一眼能看全；收起状态在标题行右侧保留当前取值，不用展开也知道现在是什么。
  *
  * 注意：安卓端没有「24 小时制」「在线校准」「自动定位」这几个开关，
  * 移植时曾被额外加入，导致审核驳回（关闭开关后仍按 24 小时显示）。此处按安卓对齐删除。
@@ -27,6 +32,15 @@ export struct SettingsView {
   @State colors: ThemeColors = DARK_COLORS;
   /** 版本号，从应用信息读取 */
   @State appVersion: string = '1.0.0';
+  /**
+   * 「外观」/「语言」分组是否展开。默认收起，页面上只露一行摘要。
+   *
+   * 必须用 @StorageLink 而不是 @State：切换语言会把整个设置页重建一遍，
+   * @State 会被重置 —— 表现为用户刚点完「简体中文」，语言分组立刻自己收起来了。
+   * 挂在 AppStorage 上就能跨重建保留。
+   */
+  @StorageLink('settings.appearanceOpen') appearanceOpen: boolean = false;
+  @StorageLink('settings.languageOpen') languageOpen: boolean = false;
 
   private context: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
 
@@ -68,14 +82,18 @@ export struct SettingsView {
     AppStorage.setOrCreate<number>('langVersion', v + 1);
   }
 
-  /** 从 bundleManager 读版本号，读不到就用默认值 */
+  /** 从 bundleManager 读版本号；versionName 需带 WITH_APPLICATION 标志才会填充 */
   private readVersion(): string {
     try {
-      const info: bundleManager.BundleInfo =
-        bundleManager.getBundleInfoForSelfSync(bundleManager.BundleFlag.GET_BUNDLE_INFO_DEFAULT);
-      return info.versionName.length > 0 ? info.versionName : '1.0.0';
+      const info: bundleManager.BundleInfo = bundleManager.getBundleInfoForSelfSync(
+        bundleManager.BundleFlag.GET_BUNDLE_INFO_WITH_APPLICATION);
+      if (info.versionName.length > 0) {
+        return info.versionName;
+      }
+      // 兜底：版本号来自包内 module.json，读不到就显示占位符，不写死版本
+      return '—';
     } catch (e) {
-      return '1.0.0';
+      return '—';
     }
   }
 
@@ -84,10 +102,51 @@ export struct SettingsView {
     this.colors = ThemeManager.colors(this.context);
   }
 
+  /**
+   * 分组收起后的摘要：当前选中的主题名。
+   * 收起来不能把状态一起藏了 —— 用户不展开也得一眼看见现在是深色还是浅色。
+   */
+  private themeLabel(): string {
+    if (this.themeMode === ThemeMode.LIGHT) {
+      return t('settings.themeLight');
+    }
+    if (this.themeMode === ThemeMode.SYSTEM) {
+      return t('settings.themeSystem');
+    }
+    return t('settings.themeDark');
+  }
+
+  /** 分组收起后的摘要：当前选中的语言名 */
+  private langLabel(): string {
+    if (this.language === 'zh') {
+      return t('settings.langZh');
+    }
+    if (this.language === 'en') {
+      return t('settings.langEn');
+    }
+    return t('settings.langSystem');
+  }
+
+  /** 折叠动画：高度变化交给 animateTo，箭头旋转自己带 .animation() */
+  private toggleAppearance(): void {
+    this.getUIContext().animateTo({ duration: 220, curve: Curve.EaseInOut }, () => {
+      this.appearanceOpen = !this.appearanceOpen;
+    });
+  }
+
+  private toggleLanguage(): void {
+    this.getUIContext().animateTo({ duration: 220, curve: Curve.EaseInOut }, () => {
+      this.languageOpen = !this.languageOpen;
+    });
+  }
+
   async switchTheme(mode: ThemeMode): Promise<void> {
     await ThemeManager.setMode(this.context, mode);
     this.themeMode = mode;
     this.colors = ThemeManager.colors(this.context);
+    // 广播给 Index：底部导航条的颜色挂在它身上，不通知就会一直停在旧主题
+    const v: number = AppStorage.get<number>('themeVersion') ?? 0;
+    AppStorage.setOrCreate<number>('themeVersion', v + 1);
   }
 
   build() {
@@ -104,71 +163,109 @@ export struct SettingsView {
 
       Scroll() {
         Column({ space: 20 }) {
-          // ---------- 外观 ----------
+          // ---------- 外观（可折叠）----------
+          // 标题行始终可见，右侧带当前选中的主题名 + 展开箭头；
+          // 点标题行展开/收起下面的三个主题选项。
           Column() {
             Row() {
               Text(t('settings.appearance'))
-                .fontSize(13)
+                .fontSize(15)
                 .fontWeight(FontWeight.Medium)
+                .fontColor(this.colors.text)
+              Blank()
+              Text(this.themeLabel())
+                .fontSize(13)
                 .fontColor(this.colors.textGray)
+              Image($r('app.media.ic_chevron_down'))
+                .width(18)
+                .height(18)
+                .fillColor(this.colors.textGray)
+                .margin({ left: 6 })
+                .rotate({ angle: this.appearanceOpen ? 180 : 0 })
+                .animation({ duration: 220, curve: Curve.EaseInOut })
             }
             .width('100%')
-            .padding({ bottom: 10 })
+            .height(52)
+            .padding({ left: 16, right: 16 })
+            .onClick(() => { this.toggleAppearance(); })
 
-            Column() {
-              this.ThemeOption(t('settings.themeDark'), t('settings.themeDarkDesc'), ThemeMode.DARK,
-                $r('app.media.ic_moon'))
-              this.DividerLine()
-              this.ThemeOption(t('settings.themeLight'), t('settings.themeLightDesc'), ThemeMode.LIGHT,
-                $r('app.media.ic_sun'))
-              this.DividerLine()
-              this.ThemeOption(t('settings.themeSystem'), t('settings.themeSystemDesc'), ThemeMode.SYSTEM,
-                $r('app.media.ic_brightness'))
+            if (this.appearanceOpen) {
+              Column() {
+                this.DividerLine()
+                this.ThemeOption(t('settings.themeDark'), t('settings.themeDarkDesc'), ThemeMode.DARK,
+                  $r('app.media.ic_moon'))
+                this.DividerLine()
+                this.ThemeOption(t('settings.themeLight'), t('settings.themeLightDesc'), ThemeMode.LIGHT,
+                  $r('app.media.ic_sun'))
+                this.DividerLine()
+                this.ThemeOption(t('settings.themeSystem'), t('settings.themeSystemDesc'), ThemeMode.SYSTEM,
+                  $r('app.media.ic_brightness'))
+              }
+              .width('100%')
             }
-            .width('100%')
-            .backgroundColor(this.colors.card)
-            .borderRadius(16)
           }
           .width('100%')
-          .alignItems(HorizontalAlign.Start)
+          .backgroundColor(this.colors.card)
+          .borderRadius(16)
+          .clip(true)
 
-          // ---------- 语言 ----------
+          // ---------- 语言（可折叠）----------
           Column() {
             Row() {
               Text(t('settings.language'))
-                .fontSize(13)
+                .fontSize(15)
                 .fontWeight(FontWeight.Medium)
+                .fontColor(this.colors.text)
+              Blank()
+              Text(this.langLabel())
+                .fontSize(13)
                 .fontColor(this.colors.textGray)
+              Image($r('app.media.ic_chevron_down'))
+                .width(18)
+                .height(18)
+                .fillColor(this.colors.textGray)
+                .margin({ left: 6 })
+                .rotate({ angle: this.languageOpen ? 180 : 0 })
+                .animation({ duration: 220, curve: Curve.EaseInOut })
             }
             .width('100%')
-            .padding({ bottom: 10 })
+            .height(52)
+            .padding({ left: 16, right: 16 })
+            .onClick(() => { this.toggleLanguage(); })
 
-            Column() {
-              this.LangOption(t('settings.langSystem'), t('settings.langSystemDesc'), 'system')
-              this.DividerLine()
-              this.LangOption(t('settings.langZh'), t('settings.langZhDesc'), 'zh')
-              this.DividerLine()
-              this.LangOption(t('settings.langEn'), t('settings.langEnDesc'), 'en')
+            if (this.languageOpen) {
+              Column() {
+                this.DividerLine()
+                this.LangOption(t('settings.langSystem'), t('settings.langSystemDesc'), 'system')
+                this.DividerLine()
+                this.LangOption(t('settings.langZh'), t('settings.langZhDesc'), 'zh')
+                this.DividerLine()
+                this.LangOption(t('settings.langEn'), t('settings.langEnDesc'), 'en')
+              }
+              .width('100%')
             }
-            .width('100%')
-            .backgroundColor(this.colors.card)
-            .borderRadius(16)
           }
           .width('100%')
-          .alignItems(HorizontalAlign.Start)
+          .backgroundColor(this.colors.card)
+          .borderRadius(16)
+          .clip(true)
 
           // ---------- 关于 ----------
+          // 纯展示信息，不做折叠：标题行与上面两块保持同一种卡片样式，
+          // 但不带箭头、不可点，避免让人以为展开还有隐藏内容。
           Column() {
             Row() {
               Text(t('settings.about'))
-                .fontSize(13)
+                .fontSize(15)
                 .fontWeight(FontWeight.Medium)
-                .fontColor(this.colors.textGray)
+                .fontColor(this.colors.text)
             }
             .width('100%')
-            .padding({ bottom: 10 })
+            .height(52)
+            .padding({ left: 16, right: 16 })
 
             Column() {
+              this.DividerLine()
               this.InfoRow(t('settings.version'), this.appVersion)
               this.DividerLine()
               this.InfoRow(t('settings.appName'), t('common.appName'))
@@ -176,11 +273,11 @@ export struct SettingsView {
               this.InfoRow(t('settings.algorithm'), t('settings.algorithmValue'))
             }
             .width('100%')
-            .backgroundColor(this.colors.card)
-            .borderRadius(16)
           }
           .width('100%')
-          .alignItems(HorizontalAlign.Start)
+          .backgroundColor(this.colors.card)
+          .borderRadius(16)
+          .clip(true)
 
           // ---------- 提示 ----------
           Text(t('settings.tipEdit'))
@@ -250,10 +347,25 @@ export struct SettingsView {
     .onClick(() => { this.switchTheme(mode); })
   }
 
-  /** 语言选项行：标题 + 说明 + 右侧选中圆点（与外观行同样的视觉语言） */
+  /**
+   * 语言选项行：标题 + 说明 + 右侧选中圆点
+   *
+   * 左侧和外观行一样带圆形图标 —— 之前没有图标，这一组的文字比上下两组整体左移，
+   * 三张卡片摞在一起时左边界对不齐，看着像没做完。
+   */
   @Builder
   LangOption(title: string, subtitle: string, value: string) {
     Row() {
+      Stack() {
+        Circle({ width: 40, height: 40 }).fill(this.colors.cardHover)
+        Image($r('app.media.ic_language'))
+          .width(20)
+          .height(20)
+          .fillColor(this.colors.accent)
+      }
+      .width(40)
+      .height(40)
+
       Column({ space: 2 }) {
         Text(title)
           .fontSize(15)
@@ -264,6 +376,7 @@ export struct SettingsView {
           .fontColor(this.colors.textGray)
       }
       .alignItems(HorizontalAlign.Start)
+      .margin({ left: 14 })
       .layoutWeight(1)
 
       Stack() {

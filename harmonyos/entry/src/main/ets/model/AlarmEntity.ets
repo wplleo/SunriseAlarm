@@ -38,7 +38,8 @@ export class AlarmEntity {
   label: string = '';
   enabled: boolean = true;
   repeatDays: number = REPEAT_EVERY_DAY;
-  soundName: string = '晨曦';
+  /** 仅用于本地音乐：存用户选的文件名。内置铃声留空，显示时按 soundUri 本地化 */
+  soundName: string = '';
   soundUri: string = '';
   snoozeEnabled: boolean = true;
   snoozeMinutes: number = 5;

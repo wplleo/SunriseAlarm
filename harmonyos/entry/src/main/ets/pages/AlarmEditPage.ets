@@ -23,10 +23,14 @@ import { ReminderService } from '../service/ReminderService';
 import { AlarmTimeCalculator } from '../common/AlarmTimeCalculator';
 import { ThemeManager, ThemeColors, DARK_COLORS } from '../common/AppTheme';
 import { TimeFormat } from '../common/TimeFormat';
+import { ringToneName } from '../common/RingTones';
 import { t } from '../common/I18n';
 
 /** 一~日：存 i18n key，渲染时经 t() 取文案 */
-const DAY_LABELS: string[] = ['day.mon', 'day.tue', 'day.wed', 'day.thu', 'day.fri', 'day.sat', 'day.sun'];
+const DAY_LABELS: string[] = [
+  'alarm.dayMon', 'alarm.dayTue', 'alarm.dayWed', 'alarm.dayThu',
+  'alarm.dayFri', 'alarm.daySat', 'alarm.daySun'
+];
 
 @Entry
 @Component
@@ -348,7 +352,7 @@ struct AlarmEditPage {
                   .fontSize(15)
                   .fontColor(this.colors.text)
                 Blank()
-                Text(this.alarm.soundName.length > 0 ? this.alarm.soundName : t('sound.default'))
+                Text(this.alarm.soundName.length > 0 ? this.alarm.soundName : ringToneName(this.alarm.soundUri))
                   .fontSize(14)
                   .fontColor(this.colors.textGray)
                 Text('>')
@@ -486,7 +490,7 @@ struct AlarmEditPage {
             .fontWeight(FontWeight.Medium)
             .fontColor(this.colors.text)
           Blank()
-          Text(t('sound.current', [this.alarm.soundName.length > 0 ? this.alarm.soundName : t('sound.default')]))
+          Text(t('sound.current', [this.alarm.soundName.length > 0 ? this.alarm.soundName : ringToneName(this.alarm.soundUri)]))
             .fontSize(11)
             .fontColor(this.colors.textGray)
             .maxLines(1)
