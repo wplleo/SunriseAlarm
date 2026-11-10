@@ -1,0 +1,47 @@
+<resources>
+    <!--
+      英文资源。
+      界面正文走 common/I18n.kt 的词典（ViewModel、通知这些拿不到 Context 的地方也要取词），
+      这里只放系统直接读取的文案：桌面应用名、权限说明、通知渠道名。
+    -->
+    <string name="app_name">Sunrise Alarm</string>
+    <string name="tab_alarms">Alarm</string>
+    <string name="tab_location">Location</string>
+    <string name="tab_settings">Settings</string>
+    <string name="add_alarm">New alarm</string>
+    <string name="location_settings">Location</string>
+    <string name="save">Save</string>
+    <string name="back">Back</string>
+    <string name="alarm_type_regular">Regular</string>
+    <string name="alarm_type_sunrise">Sunrise</string>
+    <string name="alarm_type_sunset">Sunset</string>
+    <string name="repeat">Repeat</string>
+    <string name="label">Label</string>
+    <string name="sound">Sound</string>
+    <string name="snooze">Snooze</string>
+    <string name="vibration">Vibrate</string>
+    <string name="save_alarm">Save alarm</string>
+    <string name="current_location">Current location</string>
+    <string name="auto_locate">Auto locate</string>
+    <string name="manual_search">Search for a city or region</string>
+    <string name="manual_coord">Enter coordinates manually</string>
+    <string name="alarm_channel_name">Alarms</string>
+    <string name="alarm_channel_desc">Sunrise and sunset alarm reminders</string>
+    <string name="alarm_ringing">Alarm ringing</string>
+    <string name="dismiss">Dismiss</string>
+    <string name="snooze_btn">Snooze</string>
+    <string name="my_alarms">My alarms</string>
+    <string name="next_alarm">Next alarm</string>
+    <string name="sunrise_label">Sunrise</string>
+    <string name="sunset_label">Sunset</string>
+    <string name="today_sun">Today\'s sun</string>
+    <string name="daylight">Daylight</string>
+    <string name="offset_before">Earlier</string>
+    <string name="offset_after">Later</string>
+    <string name="offset_minutes">%1$d min</string>
+    <string name="relative_to_sunrise">Relative to sunrise</string>
+    <string name="relative_to_sunset">Relative to sunset</string>
+    <string name="saved_locations">Saved locations</string>
+    <string name="alarm_label_default">Alarm</string>
+    <string name="notification_permission_rationale">Notification permission is needed to show alarm reminders</string>
+</resources>

@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.sunrise.alarm.SunriseAlarmApp
+import com.sunrise.alarm.common.t
 import com.sunrise.alarm.data.LocationInfo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,7 +21,14 @@ data class LocationUiState(
     val searchResults: List<LocationInfo> = emptyList(),
     val isLocating: Boolean = false,
     val isSearching: Boolean = false,
-    val message: String = ""
+    val message: String = "",
+    /**
+     * 这条提示是不是错误提示（决定显示成红色还是绿色）。
+     *
+     * 早先是拿 message 里有没有「失败」「未找到」来判断颜色的 —— 一上英文就永远判成
+     * 绿色，出错也看着像成功。颜色不能靠文案内容猜，让 ViewModel 直接给结论。
+     */
+    val isError: Boolean = false
 )
 
 class LocationViewModel(
@@ -56,44 +64,46 @@ class LocationViewModel(
 
     fun locateNow() {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLocating = true, message = "")
+            _uiState.value = _uiState.value.copy(isLocating = true, message = "", isError = false)
             val loc = locationService.getCurrentLocation()
             if (loc != null) {
                 locationPrefs.currentLocation = loc
                 locationPrefs.addSavedLocation(loc)
                 refreshFromPrefs()
-                _uiState.value = _uiState.value.copy(isLocating = false, message = "定位成功：${loc.name}")
+                _uiState.value = _uiState.value.copy(isLocating = false, message = t("location.locateSuccess", loc.name), isError = false)
             } else {
-                _uiState.value = _uiState.value.copy(isLocating = false, message = "定位失败，请检查位置权限")
+                _uiState.value = _uiState.value.copy(isLocating = false, message = t("location.locateFailed"), isError = true)
             }
         }
     }
 
     fun setSearchQuery(text: String) {
-        _uiState.value = _uiState.value.copy(searchQuery = text, searchResults = emptyList(), message = "")
+        _uiState.value = _uiState.value.copy(searchQuery = text, searchResults = emptyList(), message = "", isError = false)
     }
 
     fun searchLocation() {
         val query = _uiState.value.searchQuery.trim()
         if (query.isEmpty()) {
-            _uiState.value = _uiState.value.copy(message = "请输入搜索内容")
+            _uiState.value = _uiState.value.copy(message = t("location.searchEmpty"), isError = true)
             return
         }
 
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isSearching = true, message = "搜索中...")
+            _uiState.value = _uiState.value.copy(isSearching = true, message = t("location.searching"), isError = false)
             val results = locationService.searchCities(query)
             if (results.isNotEmpty()) {
                 _uiState.value = _uiState.value.copy(
                     isSearching = false,
                     searchResults = results,
-                    message = "找到 ${results.size} 个结果"
+                    message = "",
+                    isError = false
                 )
             } else {
                 _uiState.value = _uiState.value.copy(
                     isSearching = false,
                     searchResults = emptyList(),
-                    message = "未找到「$query」，换个关键词试试"
+                    message = t("location.searchNoResult", query),
+                    isError = true
                 )
             }
         }
@@ -104,14 +114,14 @@ class LocationViewModel(
         locationPrefs.currentLocation = newLoc  // 触发 StateFlow
         locationPrefs.addSavedLocation(newLoc)
         refreshFromPrefs()
-        _uiState.value = _uiState.value.copy(message = "已切换到 ${loc.name}")
+        _uiState.value = _uiState.value.copy(message = t("location.switched", loc.name), isError = false)
     }
 
     fun selectSavedLocation(loc: LocationInfo) {
         val newLoc = loc.copy(isCurrent = true)
         locationPrefs.currentLocation = newLoc  // 触发 StateFlow
         refreshFromPrefs()
-        _uiState.value = _uiState.value.copy(message = "已切换到 ${loc.name}")
+        _uiState.value = _uiState.value.copy(message = t("location.switched", loc.name), isError = false)
     }
 
     fun addManualLocation(lat: Double, lng: Double, name: String) {
@@ -119,11 +129,11 @@ class LocationViewModel(
         locationPrefs.currentLocation = loc  // 触发 StateFlow
         locationPrefs.addSavedLocation(loc)
         refreshFromPrefs()
-        _uiState.value = _uiState.value.copy(message = "已添加 $name")
+        _uiState.value = _uiState.value.copy(message = t("location.switched", name), isError = false)
     }
 
     fun clearMessage() {
-        _uiState.value = _uiState.value.copy(message = "")
+        _uiState.value = _uiState.value.copy(message = "", isError = false)
     }
 
     companion object {

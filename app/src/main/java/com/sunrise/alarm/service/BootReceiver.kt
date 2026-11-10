@@ -17,25 +17,14 @@ class BootReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == Intent.ACTION_BOOT_COMPLETED ||
-            intent.action == Intent.ACTION_LOCKED_BOOT_COMPLETED ||
-            intent.action == Intent.ACTION_MY_PACKAGE_REPLACED ||
-            intent.action == Intent.ACTION_TIME_CHANGED ||
-            intent.action == Intent.ACTION_TIMEZONE_CHANGED
+            intent.action == Intent.ACTION_MY_PACKAGE_REPLACED
         ) {
-            Log.i(TAG, "系统事件(${intent.action})，重新注册闹钟")
-            val pendingResult = goAsync()
+            Log.i(TAG, "开机/更新完成，重新注册闹钟")
             CoroutineScope(Dispatchers.IO).launch {
-                try {
-                    val dao = AlarmDatabase.getDatabase(context).alarmDao()
-                    val scheduler = AlarmScheduler(context)
-                    val alarms = dao.getEnabledAlarms()
-                    scheduler.rescheduleAll(alarms)
-                    Log.i(TAG, "已重新注册 ${alarms.size} 个闹钟")
-                } catch (e: Exception) {
-                    Log.e(TAG, "重新注册闹钟失败", e)
-                } finally {
-                    pendingResult.finish()
-                }
+                val dao = AlarmDatabase.getDatabase(context).alarmDao()
+                val scheduler = AlarmScheduler(context)
+                val alarms = dao.getEnabledAlarms()
+                scheduler.rescheduleAll(alarms)
             }
         }
     }

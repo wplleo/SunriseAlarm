@@ -1,7 +1,19 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.devtools.ksp")
+}
+
+/**
+ * 正式签名材料从 keystore.properties 读，不写死在构建脚本里（脚本会进仓库）。
+ * 文件不存在时留空，脚本仍能配置成功 —— 只是打不出 release 包，
+ * 这样别人 clone 下来不配置也能先跑 debug。
+ */
+val keystoreProps = Properties().apply {
+    val f = rootProject.file("keystore.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
 }
 
 android {
@@ -12,17 +24,31 @@ android {
         applicationId = "com.sunrise.alarm"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        // 与鸿蒙版对齐：1.1.2 / 1000008，两个商店同一个版本号
+        versionCode = 1000008
+        versionName = "1.1.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
+    }
+
+    signingConfigs {
+        if (keystoreProps.getProperty("storeFile") != null) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // 有签名材料才挂上去，避免没配置的人打 release 直接失败
+            signingConfigs.findByName("release")?.let { signingConfig = it }
         }
     }
 
@@ -52,6 +78,9 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.7.7")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
+    // 本工程不用 Fragment，但 play-services-location 会带进来一个 1.1.x 的老版本，
+    // activity 1.8 的 lint 检查会因此判 release 包不可构建。显式提到 1.6.2 消掉这个隐患。
+    implementation("androidx.fragment:fragment:1.6.2")
 
     // Room
     implementation("androidx.room:room-runtime:2.6.1")

@@ -52,12 +52,12 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sunrise.alarm.common.t
 import com.sunrise.alarm.data.AlarmEntity
 import com.sunrise.alarm.data.AlarmType
 import com.sunrise.alarm.ui.theme.AppColors
 import kotlinx.coroutines.launch
 import java.util.Calendar
-import java.util.Locale
 import kotlin.math.roundToInt
 
 @Composable
@@ -111,8 +111,8 @@ fun HomeScreen(
                     Text(
                         text = when {
                             state.location != null -> state.location!!.name
-                            state.isLocating -> "定位中..."
-                            else -> "点击位置设置"
+                            state.isLocating -> t("common.locating")
+                            else -> t("home.setLocationHint")
                         },
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
@@ -143,7 +143,7 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "我的闹钟",
+                        text = t("home.myAlarms"),
                         fontSize = 20.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = colors.textWhite
@@ -158,7 +158,7 @@ fun HomeScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Add,
-                            contentDescription = "添加",
+                            contentDescription = t("common.add"),
                             tint = Color.White,
                             modifier = Modifier.size(18.dp)
                         )
@@ -176,7 +176,7 @@ fun HomeScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            "暂无闹钟，点击 + 添加",
+                            text = t("home.noAlarm"),
                             fontSize = 14.sp,
                             color = colors.textGray
                         )
@@ -243,12 +243,12 @@ private fun SwipeToDeleteAlarmCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Delete,
-                        contentDescription = "删除",
+                        contentDescription = t("common.delete"),
                         tint = Color.White,
                         modifier = Modifier.size(22.dp)
                     )
                     Text(
-                        "删除",
+                        t("common.delete"),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color.White
@@ -315,12 +315,12 @@ private fun SunHeroCard(state: HomeUiState, colors: com.sunrise.alarm.ui.theme.E
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "今日太阳",
+                    text = t("home.sunToday"),
                     fontSize = 13.sp,
                     color = Color.White.copy(alpha = 0.7f)
                 )
                 Text(
-                    text = "白昼 ${state.daylightText}",
+                    text = t("home.daylight", state.daylightText),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                     color = colors.orangeLight
@@ -345,7 +345,7 @@ private fun SunHeroCard(state: HomeUiState, colors: com.sunrise.alarm.ui.theme.E
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
-                    Text("日出", fontSize = 11.sp, color = Color.White.copy(alpha = 0.6f))
+                    Text(t("home.sunrise"), fontSize = 11.sp, color = Color.White.copy(alpha = 0.6f))
                     Text(
                         state.sunriseTime,
                         fontSize = 24.sp,
@@ -354,7 +354,7 @@ private fun SunHeroCard(state: HomeUiState, colors: com.sunrise.alarm.ui.theme.E
                     )
                 }
                 Column(horizontalAlignment = Alignment.End) {
-                    Text("日落", fontSize = 11.sp, color = Color.White.copy(alpha = 0.6f))
+                    Text(t("home.sunset"), fontSize = 11.sp, color = Color.White.copy(alpha = 0.6f))
                     Text(
                         state.sunsetTime,
                         fontSize = 24.sp,
@@ -448,7 +448,7 @@ private fun NextAlarmBanner(state: HomeUiState, colors: com.sunrise.alarm.ui.the
             modifier = Modifier.size(20.dp)
         )
         Column {
-            Text("下一个闹钟", fontSize = 11.sp, color = colors.textGray)
+            Text(t("home.nextAlarm"), fontSize = 11.sp, color = colors.textGray)
             Text(
                 state.nextAlarmText,
                 fontSize = 13.sp,
@@ -470,8 +470,8 @@ private fun AlarmCard(
     onLongClick: () -> Unit
 ) {
     val (tagText, tagColor) = when (alarm.type) {
-        AlarmType.SUNRISE -> "日出" to colors.orange
-        AlarmType.SUNSET -> "日落" to colors.red
+        AlarmType.SUNRISE -> t("common.sunrise") to colors.orange
+        AlarmType.SUNSET -> t("common.sunset") to colors.red
         AlarmType.REGULAR -> null to Color.Transparent
     }
 
@@ -539,13 +539,13 @@ private fun buildAlarmLabel(alarm: AlarmEntity): String {
     val parts = mutableListOf<String>()
     if (alarm.label.isNotEmpty()) parts.add(alarm.label)
     when (alarm.type) {
-        AlarmType.SUNRISE -> parts.add("日出${offsetText(alarm.offsetMinutes)}")
-        AlarmType.SUNSET -> parts.add("日落${offsetText(alarm.offsetMinutes)}")
+        AlarmType.SUNRISE -> parts.add(t("home.sunriseOffset", offsetText(alarm.offsetMinutes)))
+        AlarmType.SUNSET -> parts.add(t("home.sunsetOffset", offsetText(alarm.offsetMinutes)))
         AlarmType.REGULAR -> {}
     }
     // 日出/日落时间每天变化，显示"当天"而非"每天"，避免误解为固定时间
     when (alarm.type) {
-        AlarmType.SUNRISE, AlarmType.SUNSET -> parts.add("当天")
+        AlarmType.SUNRISE, AlarmType.SUNSET -> parts.add(t("home.sameDay"))
         AlarmType.REGULAR -> parts.add(alarm.repeatText)
     }
     return parts.joinToString(" · ")
@@ -554,16 +554,28 @@ private fun buildAlarmLabel(alarm: AlarmEntity): String {
 private fun offsetText(min: Int): String {
     return when {
         min == 0 -> ""
-        min > 0 -> "后${min}分钟"
-        else -> "前${-min}分钟"
+        min > 0 -> t("home.offsetAfter", min)
+        else -> t("home.offsetBefore", -min)
     }
 }
 
+/**
+ * 顶部日期。
+ * 中文「10月5日 周日」和英文「Sun, 10/5」的顺序不一样，只能按语言分开拼，
+ * 用一条 pattern 硬套会在另一侧读着别扭。星期名同样走词库，不调系统 DateFormat，
+ * 免得英文界面里窜出中文星期。
+ */
 private fun getDateString(): String {
     val cal = Calendar.getInstance()
-    val weekNames = arrayOf("周日", "周一", "周二", "周三", "周四", "周五", "周六")
-    return String.format(Locale.getDefault(), "%d月%d日 %s",
+    val weekKeys = arrayOf(
+        "home.weekSun", "home.weekMon", "home.weekTue", "home.weekWed",
+        "home.weekThu", "home.weekFri", "home.weekSat"
+    )
+    val week = t(weekKeys[cal.get(Calendar.DAY_OF_WEEK) - 1])
+    return t(
+        "home.dateText",
         cal.get(Calendar.MONTH) + 1,
         cal.get(Calendar.DAY_OF_MONTH),
-        weekNames[cal.get(Calendar.DAY_OF_WEEK) - 1])
+        week
+    )
 }

@@ -10,3 +10,10 @@
 local.properties
 /app/build
 *.apk
+
+# 正式签名材料不进仓库 —— 但绝对不能丢，见 keystore.properties 里的说明
+/keystore
+keystore.properties
+
+# 设计稿导出、真机截图
+/android-shots

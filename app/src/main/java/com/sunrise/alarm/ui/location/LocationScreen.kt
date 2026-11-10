@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.sunrise.alarm.common.t
 import com.sunrise.alarm.data.LocationInfo
 import com.sunrise.alarm.ui.theme.AppColors
 
@@ -75,7 +76,7 @@ fun LocationScreen(
                 .padding(horizontal = 20.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("位置设置", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = colors.textWhite)
+            Text(t("location.title"), fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = colors.textWhite)
         }
 
         // 滚动内容
@@ -94,7 +95,7 @@ fun LocationScreen(
             AutoLocateRow(state, colors, viewModel::toggleAutoLocate)
 
             // 手动搜索
-            SectionLabel("手动选择位置", colors)
+            SectionLabel(t("location.manualSelect"), colors)
             SearchBar(state, colors, viewModel)
 
             // 搜索中状态
@@ -110,7 +111,7 @@ fun LocationScreen(
                         color = colors.orange
                     )
                     Spacer(Modifier.size(8.dp))
-                    Text("搜索中...", fontSize = 13.sp, color = colors.textGray)
+                    Text(t("location.searching"), fontSize = 13.sp, color = colors.textGray)
                 }
             }
 
@@ -124,10 +125,10 @@ fun LocationScreen(
             }
 
             // 已保存位置
-            SectionLabel("已保存位置", colors)
+            SectionLabel(t("location.savedPlaces"), colors)
             if (state.savedLocations.isEmpty()) {
                 Text(
-                    "暂无保存的位置",
+                    t("location.noSaved"),
                     fontSize = 13.sp,
                     color = colors.textGray,
                     modifier = Modifier.padding(vertical = 8.dp)
@@ -144,7 +145,7 @@ fun LocationScreen(
             }
 
             // 手动输入经纬度
-            SectionLabel("手动输入经纬度", colors)
+            SectionLabel(t("location.manualEntry"), colors)
             ManualCoordRow(colors, viewModel)
 
             // 消息提示
@@ -152,7 +153,7 @@ fun LocationScreen(
                 Text(
                     state.message,
                     fontSize = 13.sp,
-                    color = if (state.message.contains("失败") || state.message.contains("未找到")) colors.red else colors.green,
+                    color = if (state.isError) colors.red else colors.green,
                     modifier = Modifier.padding(vertical = 4.dp)
                 )
             }
@@ -181,11 +182,11 @@ private fun CurrentLocationCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("当前位置", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = colors.textGray)
+            Text(t("location.current"), fontSize = 13.sp, fontWeight = FontWeight.Medium, color = colors.textGray)
             if (state.isLocating) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = colors.orange)
-                    Text("定位中...", fontSize = 12.sp, color = colors.orange)
+                    Text(t("common.locating"), fontSize = 12.sp, color = colors.orange)
                 }
             } else if (state.currentLocation?.isAutoLocated == true) {
                 Box(
@@ -194,13 +195,13 @@ private fun CurrentLocationCard(
                         .background(colors.green.copy(alpha = 0.15f))
                         .padding(horizontal = 8.dp, vertical = 3.dp)
                 ) {
-                    Text("已定位", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = colors.green)
+                    Text(t("location.located"), fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = colors.green)
                 }
             }
         }
 
         Text(
-            state.currentLocation?.name ?: "未知位置",
+            state.currentLocation?.name ?: t("location.unknown"),
             fontSize = 28.sp,
             fontWeight = FontWeight.SemiBold,
             color = colors.textWhite
@@ -232,7 +233,7 @@ private fun CurrentLocationCard(
                 modifier = Modifier.size(16.dp)
             )
             Text(
-                "重新定位",
+                t("location.relocate"),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
                 color = colors.orange
@@ -262,8 +263,8 @@ private fun AutoLocateRow(
         ) {
             Icon(Icons.Default.LocationSearching, contentDescription = null, tint = colors.orange, modifier = Modifier.size(28.dp))
             Column {
-                Text("自动定位", fontSize = 15.sp, fontWeight = FontWeight.Medium, color = colors.textWhite)
-                Text("根据GPS自动更新位置", fontSize = 12.sp, color = colors.textGray)
+                Text(t("location.autoLocate"), fontSize = 15.sp, fontWeight = FontWeight.Medium, color = colors.textWhite)
+                Text(t("location.autoLocateDesc"), fontSize = 12.sp, color = colors.textGray)
             }
         }
         Switch(
@@ -318,7 +319,7 @@ private fun SearchBar(
             ),
             decorationBox = { inner ->
                 if (state.searchQuery.isEmpty()) {
-                    Text("搜索城市、地区", fontSize = 15.sp, color = colors.textGray)
+                    Text(t("location.searchPlaceholder"), fontSize = 15.sp, color = colors.textGray)
                 }
                 inner()
             },
@@ -333,7 +334,7 @@ private fun SearchBar(
             )
         } else if (state.searchQuery.isNotEmpty()) {
             Text(
-                "搜索",
+                t("location.searchButton"),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
                 color = colors.orange,
@@ -369,7 +370,7 @@ private fun SearchResultItem(
             Text(loc.name, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = colors.textWhite)
             Text(String.format("%.2f\u00B0N, %.2f\u00B0E", loc.latitude, loc.longitude), fontSize = 12.sp, color = colors.textGray)
         }
-        Text("设为当前", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = colors.orange)
+        Text(t("location.setAsCurrent"), fontSize = 13.sp, fontWeight = FontWeight.Medium, color = colors.orange)
     }
 }
 
@@ -403,7 +404,7 @@ private fun SavedLocationItem(
             Column {
                 Text(loc.name, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = colors.textWhite)
                 Text(
-                    if (isCurrent) "当前使用" else String.format("%.2f\u00B0N, %.2f\u00B0E", loc.latitude, loc.longitude),
+                    if (isCurrent) t("location.inUse") else String.format("%.2f\u00B0N, %.2f\u00B0E", loc.latitude, loc.longitude),
                     fontSize = 12.sp,
                     color = if (isCurrent) colors.green else colors.textGray
                 )
@@ -443,7 +444,7 @@ private fun ManualCoordRow(
                 tint = colors.textGray,
                 modifier = Modifier.size(24.dp)
             )
-            Text("手动输入经纬度", fontSize = 15.sp, color = colors.textWhite)
+            Text(t("location.manualEntry"), fontSize = 15.sp, color = colors.textWhite)
         }
         Text(">", fontSize = 16.sp, color = colors.textGray)
     }
@@ -479,11 +480,11 @@ private fun ManualCoordDialog(
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text("手动输入经纬度", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = colors.textWhite)
+            Text(t("location.manualEntry"), fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = colors.textWhite)
 
             // 名称
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("位置名称（可选）", fontSize = 13.sp, color = colors.textGray)
+                Text(t("location.manualNameLabel"), fontSize = 13.sp, color = colors.textGray)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -501,7 +502,7 @@ private fun ManualCoordDialog(
                         cursorBrush = androidx.compose.ui.graphics.SolidColor(colors.orange),
                         decorationBox = { inner ->
                             if (nameText.isEmpty()) {
-                                Text("如：我的家乡", fontSize = 15.sp, color = colors.textGray)
+                                Text(t("location.manualNameHint"), fontSize = 15.sp, color = colors.textGray)
                             }
                             inner()
                         }
@@ -511,7 +512,7 @@ private fun ManualCoordDialog(
 
             // 纬度
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("纬度（-90 ~ 90）", fontSize = 13.sp, color = colors.textGray)
+                Text(t("location.latLabel"), fontSize = 13.sp, color = colors.textGray)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -530,7 +531,7 @@ private fun ManualCoordDialog(
                         cursorBrush = androidx.compose.ui.graphics.SolidColor(colors.orange),
                         decorationBox = { inner ->
                             if (latText.isEmpty()) {
-                                Text("如：39.9042", fontSize = 15.sp, color = colors.textGray)
+                                Text(t("location.latHint"), fontSize = 15.sp, color = colors.textGray)
                             }
                             inner()
                         }
@@ -540,7 +541,7 @@ private fun ManualCoordDialog(
 
             // 经度
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("经度（-180 ~ 180）", fontSize = 13.sp, color = colors.textGray)
+                Text(t("location.lonLabel"), fontSize = 13.sp, color = colors.textGray)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -560,10 +561,10 @@ private fun ManualCoordDialog(
                             val lat = latText.toDoubleOrNull()
                             val lng = lngText.toDoubleOrNull()
                             when {
-                                lat == null -> error = "纬度格式不正确"
-                                lng == null -> error = "经度格式不正确"
-                                lat < -90 || lat > 90 -> error = "纬度范围为 -90 ~ 90"
-                                lng < -180 || lng > 180 -> error = "经度范围为 -180 ~ 180"
+                                lat == null -> error = t("location.errLatFormat")
+                                lng == null -> error = t("location.errLonFormat")
+                                lat < -90 || lat > 90 -> error = t("location.errLatRange")
+                                lng < -180 || lng > 180 -> error = t("location.errLonRange")
                                 else -> {
                                     val name = nameText.ifBlank { String.format("%.2f, %.2f", lat, lng) }
                                     onConfirm(lat, lng, name)
@@ -573,7 +574,7 @@ private fun ManualCoordDialog(
                         cursorBrush = androidx.compose.ui.graphics.SolidColor(colors.orange),
                         decorationBox = { inner ->
                             if (lngText.isEmpty()) {
-                                Text("如：116.4074", fontSize = 15.sp, color = colors.textGray)
+                                Text(t("location.lonHint"), fontSize = 15.sp, color = colors.textGray)
                             }
                             inner()
                         }
@@ -593,7 +594,7 @@ private fun ManualCoordDialog(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "取消",
+                    t("common.cancel"),
                     fontSize = 15.sp,
                     color = colors.textGray,
                     modifier = Modifier
@@ -603,7 +604,7 @@ private fun ManualCoordDialog(
                 )
                 Spacer(Modifier.size(8.dp))
                 Text(
-                    "确定",
+                    t("common.confirm"),
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color.White,
@@ -614,10 +615,10 @@ private fun ManualCoordDialog(
                             val lat = latText.toDoubleOrNull()
                             val lng = lngText.toDoubleOrNull()
                             when {
-                                lat == null -> error = "纬度格式不正确"
-                                lng == null -> error = "经度格式不正确"
-                                lat < -90 || lat > 90 -> error = "纬度范围为 -90 ~ 90"
-                                lng < -180 || lng > 180 -> error = "经度范围为 -180 ~ 180"
+                                lat == null -> error = t("location.errLatFormat")
+                                lng == null -> error = t("location.errLonFormat")
+                                lat < -90 || lat > 90 -> error = t("location.errLatRange")
+                                lng < -180 || lng > 180 -> error = t("location.errLonRange")
                                 else -> {
                                     val name = nameText.ifBlank { String.format("%.2f, %.2f", lat, lng) }
                                     onConfirm(lat, lng, name)

@@ -9,11 +9,13 @@ import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * 主题模式：深色 / 浅色 / 跟随系统
+ *
+ * 不带显示名 —— 文案统一走 common/I18n.kt 的 t()，枚举里留中文会漏翻。
  */
-enum class ThemeMode(val label: String) {
-    DARK("深色模式"),
-    LIGHT("浅色模式"),
-    SYSTEM("跟随系统")
+enum class ThemeMode {
+    DARK,
+    LIGHT,
+    SYSTEM
 }
 
 /**

@@ -1,5 +1,6 @@
 package com.sunrise.alarm.util
 
+import com.sunrise.alarm.common.t
 import java.util.Calendar
 import java.util.TimeZone
 import kotlin.math.PI
@@ -226,7 +227,7 @@ object SunriseSunsetCalculator {
     fun formatDaylight(minutes: Int): String {
         val h = minutes / 60
         val m = minutes % 60
-        return "${h}时${m}分"
+        return t("common.durationHM", h, m)
     }
 
     /**

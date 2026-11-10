@@ -24,7 +24,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,6 +43,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.sunrise.alarm.SunriseAlarmApp
+import com.sunrise.alarm.common.t
 import com.sunrise.alarm.ui.addalarm.AddAlarmScreen
 import com.sunrise.alarm.ui.addalarm.AddAlarmViewModel
 import com.sunrise.alarm.ui.home.HomeScreen
@@ -62,6 +67,17 @@ private const val PAGE_HOME = 0
 private const val PAGE_LOCATION = 1
 private const val PAGE_SETTINGS = 2
 
+/**
+ * 当前停在哪个 Tab。
+ *
+ * 放在进程级单例里而不是 remember：切语言时 MainActivity 会用 key(langVersion)
+ * 重建整棵树（连 pagerState、ViewModel 一起重来），remember 的值保不住 ——
+ * 表现为在设置页点完「English」，界面直接弹回第一个 Tab，用户会以为自己点错了。
+ */
+private object NavState {
+    var page by mutableStateOf(PAGE_HOME)
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AppNavigation() {
@@ -76,8 +92,13 @@ fun AppNavigation() {
     ) {
         // ---- 主页面：HorizontalPager 三页滑动 ----
         composable(Routes.MAIN) {
-            val pagerState = rememberPagerState(pageCount = { 3 })
+            val pagerState = rememberPagerState(initialPage = NavState.page, pageCount = { 3 })
             val scope = rememberCoroutineScope()
+
+            // 把当前页记下来，供下一次（切语言后的）重建恢复
+            LaunchedEffect(pagerState.currentPage) {
+                NavState.page = pagerState.currentPage
+            }
 
             Scaffold(
                 containerColor = colors.bgDark,
@@ -164,21 +185,21 @@ private fun SharedBottomTabBar(
         verticalAlignment = Alignment.CenterVertically
     ) {
         TabItem(
-            label = "闹钟",
+            label = t("common.alarm"),
             icon = Icons.Default.AccessTime,
             tint = if (currentPage == PAGE_HOME) colors.orange else colors.textGray,
             active = currentPage == PAGE_HOME,
             onClick = onHomeClick
         )
         TabItem(
-            label = "位置",
+            label = t("common.location"),
             icon = Icons.Default.Place,
             tint = if (currentPage == PAGE_LOCATION) colors.orange else colors.textGray,
             active = currentPage == PAGE_LOCATION,
             onClick = onLocationClick
         )
         TabItem(
-            label = "设置",
+            label = t("common.settings"),
             icon = Icons.Default.Settings,
             tint = if (currentPage == PAGE_SETTINGS) colors.orange else colors.textGray,
             active = currentPage == PAGE_SETTINGS,

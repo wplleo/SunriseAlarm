@@ -15,14 +15,14 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.os.PowerManager
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.sunrise.alarm.MainActivity
 import com.sunrise.alarm.R
-import com.sunrise.alarm.ui.ring.AlarmRingActivity
+import com.sunrise.alarm.common.t
 import com.sunrise.alarm.util.AlarmScheduler
 
 /**
@@ -32,13 +32,12 @@ import com.sunrise.alarm.util.AlarmScheduler
 class AlarmRingService : Service() {
 
     private var alarmId: Long = -1
-    private var label: String = "闹钟"
+    private var label: String = t("common.alarm")
     private var vibrate: Boolean = true
     private var soundUri: String = ""
 
     private val handler = Handler(Looper.getMainLooper())
     private var autoDismissRunnable: Runnable? = null
-    private var wakeLock: PowerManager.WakeLock? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -46,12 +45,6 @@ class AlarmRingService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // 总是从 Intent 读取最新参数（支持 Service 被杀后重建场景）
-        alarmId = intent?.getLongExtra(AlarmScheduler.EXTRA_ALARM_ID, -1) ?: alarmId
-        label = intent?.getStringExtra(AlarmScheduler.EXTRA_LABEL) ?: label
-        vibrate = intent?.getBooleanExtra(AlarmScheduler.EXTRA_VIBRATE, true) ?: vibrate
-        soundUri = intent?.getStringExtra(AlarmScheduler.EXTRA_SOUND_URI) ?: soundUri
-
         when (intent?.action) {
             ACTION_STOP -> {
                 stopRinging()
@@ -66,6 +59,11 @@ class AlarmRingService : Service() {
             }
         }
 
+        alarmId = intent?.getLongExtra(AlarmScheduler.EXTRA_ALARM_ID, -1) ?: -1
+        label = intent?.getStringExtra(AlarmScheduler.EXTRA_LABEL) ?: t("common.alarm")
+        vibrate = intent?.getBooleanExtra(AlarmScheduler.EXTRA_VIBRATE, true) ?: true
+        soundUri = intent?.getStringExtra(AlarmScheduler.EXTRA_SOUND_URI) ?: ""
+
         val notification = buildNotification()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -73,14 +71,6 @@ class AlarmRingService : Service() {
         } else {
             startForeground(NOTIF_ID, notification)
         }
-
-        // 获取 WakeLock 防止设备在响铃期间休眠
-        val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
-        wakeLock = pm.newWakeLock(
-            PowerManager.PARTIAL_WAKE_LOCK,
-            "SunriseAlarm:Ringing"
-        )
-        wakeLock?.acquire(15 * 60 * 1000L) // 最长 15 分钟
 
         startRinging()
 
@@ -91,7 +81,7 @@ class AlarmRingService : Service() {
         }
         handler.postDelayed(autoDismissRunnable!!, 15 * 60 * 1000L)
 
-        return START_NOT_STICKY
+        return START_STICKY
     }
 
     private fun startRinging() {
@@ -106,6 +96,7 @@ class AlarmRingService : Service() {
     }
 
     // ---- 铃声 ----
+    private var ringtone: android.media.Ringtone? = null
     private var mediaPlayer: android.media.MediaPlayer? = null
 
     private fun playSound() {
@@ -116,44 +107,44 @@ class AlarmRingService : Service() {
                 RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
             }
 
-            // 统一使用 MediaPlayer 循环播放，Ringtone 不会自动循环
-            mediaPlayer = android.media.MediaPlayer().apply {
-                try {
-                    // 系统铃声 URI 也可通过 ContentResolver 打开
-                    setDataSource(this@AlarmRingService, uri)
-                } catch (e: Exception) {
-                    // 某些系统铃声可能需要用 FileDescriptor 方式打开
-                    val fd = this@AlarmRingService.contentResolver.openAssetFileDescriptor(uri, "r")
-                    setDataSource(fd!!.fileDescriptor, fd.startOffset, fd.length)
-                    fd.close()
-                }
-                setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ALARM)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .build()
-                )
-                isLooping = true
-                prepare()
-                start()
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "播放铃声失败", e)
-            // 降级到默认闹钟铃声
-            try {
-                val defaultUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+            // 判断是否是系统铃声 URI
+            val isSystemRingtone = uri.toString().startsWith("content://settings/") ||
+                    uri.toString().startsWith("content://media/")
+
+            if (isSystemRingtone) {
+                // 系统铃声用 Ringtone 播放
+                ringtone = RingtoneManager.getRingtone(this, uri)
+                ringtone?.audioAttributes = AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+                ringtone?.play()
+            } else {
+                // 本地音乐用 MediaPlayer 播放（支持循环、更多格式）
                 mediaPlayer = android.media.MediaPlayer().apply {
-                    setDataSource(this@AlarmRingService, defaultUri)
+                    setDataSource(this@AlarmRingService, uri)
                     setAudioAttributes(
                         AudioAttributes.Builder()
                             .setUsage(AudioAttributes.USAGE_ALARM)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                             .build()
                     )
                     isLooping = true
                     prepare()
                     start()
                 }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "播放铃声失败", e)
+            // 降级到默认闹钟铃声
+            try {
+                val defaultUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                ringtone = RingtoneManager.getRingtone(this, defaultUri)
+                ringtone?.audioAttributes = AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+                ringtone?.play()
             } catch (e2: Exception) {
                 Log.e(TAG, "降级播放也失败", e2)
             }
@@ -161,6 +152,8 @@ class AlarmRingService : Service() {
     }
 
     private fun stopSound() {
+        ringtone?.stop()
+        ringtone = null
         mediaPlayer?.let {
             try {
                 if (it.isPlaying) it.stop()
@@ -212,7 +205,7 @@ class AlarmRingService : Service() {
             putExtra(AlarmScheduler.EXTRA_SOUND_URI, soundUri)
         }
         val pendingIntent = PendingIntent.getBroadcast(
-            this, -(alarmId + 1).toInt(), snoozeIntent,
+            this, (alarmId + 10000).toInt(), snoozeIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val triggerTime = System.currentTimeMillis() + 5 * 60 * 1000L
@@ -227,12 +220,8 @@ class AlarmRingService : Service() {
 
     // ---- 通知 ----
     private fun buildNotification(): Notification {
-        val contentIntent = Intent(this, AlarmRingActivity::class.java).apply {
+        val contentIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            putExtra(AlarmScheduler.EXTRA_ALARM_ID, alarmId)
-            putExtra(AlarmScheduler.EXTRA_LABEL, label)
-            putExtra(AlarmScheduler.EXTRA_VIBRATE, vibrate)
-            putExtra(AlarmScheduler.EXTRA_SOUND_URI, soundUri)
         }
         val contentPI = PendingIntent.getActivity(
             this, 0, contentIntent,
@@ -241,10 +230,6 @@ class AlarmRingService : Service() {
 
         val dismissIntent = Intent(this, AlarmReceiver::class.java).apply {
             action = AlarmScheduler.ACTION_DISMISS
-            putExtra(AlarmScheduler.EXTRA_ALARM_ID, alarmId)
-            putExtra(AlarmScheduler.EXTRA_LABEL, label)
-            putExtra(AlarmScheduler.EXTRA_VIBRATE, vibrate)
-            putExtra(AlarmScheduler.EXTRA_SOUND_URI, soundUri)
         }
         val dismissPI = PendingIntent.getBroadcast(
             this, 1, dismissIntent,
@@ -253,10 +238,6 @@ class AlarmRingService : Service() {
 
         val snoozeIntent = Intent(this, AlarmReceiver::class.java).apply {
             action = AlarmScheduler.ACTION_SNOOZE
-            putExtra(AlarmScheduler.EXTRA_ALARM_ID, alarmId)
-            putExtra(AlarmScheduler.EXTRA_LABEL, label)
-            putExtra(AlarmScheduler.EXTRA_VIBRATE, vibrate)
-            putExtra(AlarmScheduler.EXTRA_SOUND_URI, soundUri)
         }
         val snoozePI = PendingIntent.getBroadcast(
             this, 2, snoozeIntent,
@@ -297,10 +278,6 @@ class AlarmRingService : Service() {
 
     override fun onDestroy() {
         stopRinging()
-        wakeLock?.let {
-            if (it.isHeld) it.release()
-        }
-        wakeLock = null
         super.onDestroy()
     }
 

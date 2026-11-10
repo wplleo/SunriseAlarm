@@ -23,7 +23,8 @@ data class AddAlarmUiState(
     val offsetMinutes: Int = 0,
     val label: String = "",
     val repeatDays: Int = 0x7F,
-    val soundName: String = "默认铃声",
+    /** 铃声显示名；空串 = 系统默认铃声，显示时由 localizedSoundName() 兜底 */
+    val soundName: String = "",
     val soundUri: String = "",
     val snoozeEnabled: Boolean = true,
     val vibrate: Boolean = true,

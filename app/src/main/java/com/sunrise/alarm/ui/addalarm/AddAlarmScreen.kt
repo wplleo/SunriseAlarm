@@ -3,21 +3,19 @@ package com.sunrise.alarm.ui.addalarm
 import android.content.ActivityNotFoundException
 import android.content.ContentResolver
 import android.content.Intent
-import android.media.AudioManager
 import android.media.RingtoneManager
-import android.media.ToneGenerator
 import android.net.Uri
 import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -48,28 +46,27 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
-import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.sunrise.alarm.common.Lang
+import com.sunrise.alarm.common.localizedSoundName
+import com.sunrise.alarm.common.t
 import com.sunrise.alarm.data.AlarmType
 import com.sunrise.alarm.ui.theme.AppColors
-import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Composable
 fun AddAlarmScreen(
@@ -95,7 +92,7 @@ fun AddAlarmScreen(
             }
             if (uri != null) {
                 val ringtone = RingtoneManager.getRingtone(context, uri)
-                val name = ringtone?.getTitle(context) ?: "系统铃声"
+                val name = ringtone?.getTitle(context) ?: t("sound.system")
                 ringtone?.stop()
                 viewModel.setSound(name, uri.toString())
             }
@@ -115,7 +112,7 @@ fun AddAlarmScreen(
             } catch (e: SecurityException) {
                 // 某些 URI 不支持持久化，忽略
             }
-            val name = queryFileName(context.contentResolver, uri) ?: "本地音乐"
+            val name = queryFileName(context.contentResolver, uri) ?: t("sound.localMusic")
             viewModel.setSound(name, uri.toString())
         }
     }
@@ -144,14 +141,14 @@ fun AddAlarmScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "选择铃声",
+                        t("sound.dialogTitle"),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = colors.textWhite,
                         modifier = Modifier.weight(1f)
                     )
                     Text(
-                        "当前: ${state.soundName.ifEmpty { "默认铃声" }}",
+                        t("sound.current", localizedSoundName(state.soundName)),
                         fontSize = 11.sp,
                         color = colors.textGray,
                         maxLines = 1
@@ -161,26 +158,26 @@ fun AddAlarmScreen(
                 // 默认铃声
                 SoundOption(
                     icon = Icons.Default.RingVolume,
-                    title = "默认铃声",
-                    subtitle = "系统默认闹钟铃声",
+                    title = t("sound.default"),
+                    subtitle = t("sound.defaultDesc"),
                     colors = colors,
                     onClick = {
                         showSoundDialog = false
-                        viewModel.setSound("默认铃声", "")
+                        viewModel.setSound("", "")
                     }
                 )
 
                 // 系统铃声
                 SoundOption(
                     icon = Icons.Default.RingVolume,
-                    title = "系统铃声",
-                    subtitle = "从系统铃声库中选择",
+                    title = t("sound.system"),
+                    subtitle = t("sound.systemDesc"),
                     colors = colors,
                     onClick = {
                         showSoundDialog = false
                         val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
                             putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM)
-                            putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "选择闹钟铃声")
+                            putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, t("sound.dialogTitle"))
                             putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
                             putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, true)
                             val currentUri = if (state.soundUri.isNotEmpty()) Uri.parse(state.soundUri) else null
@@ -189,7 +186,7 @@ fun AddAlarmScreen(
                         try {
                             systemRingtoneLauncher.launch(intent)
                         } catch (e: ActivityNotFoundException) {
-                            Toast.makeText(context, "系统铃声选择器不可用，请选择本地音乐", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, t("toast.ringLibraryUnavailable"), Toast.LENGTH_SHORT).show()
                         }
                     }
                 )
@@ -197,15 +194,15 @@ fun AddAlarmScreen(
                 // 本地音乐
                 SoundOption(
                     icon = Icons.Default.MusicNote,
-                    title = "本地音乐",
-                    subtitle = "从手机文件中选择音乐",
+                    title = t("sound.localMusic"),
+                    subtitle = t("sound.localMusicDesc"),
                     colors = colors,
                     onClick = {
                         showSoundDialog = false
                         try {
                             localMusicLauncher.launch(arrayOf("audio/*"))
                         } catch (e: ActivityNotFoundException) {
-                            Toast.makeText(context, "文件选择器不可用", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, t("toast.pickerUnavailable"), Toast.LENGTH_SHORT).show()
                         }
                     }
                 )
@@ -235,16 +232,16 @@ fun AddAlarmScreen(
                     .clickable { onBack() },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "返回", tint = colors.textWhite, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.ArrowBack, contentDescription = null, tint = colors.textWhite, modifier = Modifier.size(18.dp))
             }
             Text(
-                if (state.isEditing) "编辑闹钟" else "新建闹钟",
+                if (state.isEditing) t("edit.title") else t("edit.newTitle"),
                 fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = colors.textWhite
             )
             Text(
-                "保存",
+                t("common.save"),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = colors.orange,
@@ -263,7 +260,7 @@ fun AddAlarmScreen(
                 .padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            WheelTimePicker(
+            TimePicker(
                 hour = state.hour,
                 minute = state.minute,
                 enabled = state.type == AlarmType.REGULAR,
@@ -272,12 +269,12 @@ fun AddAlarmScreen(
                 onMinuteChange = { viewModel.setMinute(it) }
             )
 
-            SectionLabel("闹钟类型", colors)
+            SectionLabel(t("edit.typeSection"), colors)
             TypeSelector(state.type, colors) { viewModel.setType(it) }
 
             if (state.type != AlarmType.REGULAR) {
                 SectionLabel(
-                    if (state.type == AlarmType.SUNRISE) "相对于日出" else "相对于日落",
+                    if (state.type == AlarmType.SUNRISE) t("edit.relSunrise") else t("edit.relSunset"),
                     colors
                 )
                 OffsetRow(
@@ -288,14 +285,14 @@ fun AddAlarmScreen(
                 )
             }
 
-            SectionLabel("重复", colors)
+            SectionLabel(t("edit.repeat"), colors)
             RepeatDays(
                 selectedDays = state.repeatDays,
                 colors = colors,
                 onToggle = { viewModel.toggleDay(it) }
             )
 
-            SectionLabel("标签", colors)
+            SectionLabel(t("edit.labelSection"), colors)
             LabelInput(
                 text = state.label,
                 colors = colors,
@@ -303,20 +300,20 @@ fun AddAlarmScreen(
             )
 
             // 铃声 —— 点击打开选择对话框
-            SectionLabel("铃声", colors)
-            SettingRow("铃声", state.soundName.ifEmpty { "默认铃声" }, colors) {
+            SectionLabel(t("edit.soundSection"), colors)
+            SettingRow(t("edit.sound"), localizedSoundName(state.soundName), colors) {
                 showSoundDialog = true
             }
 
             ToggleRow(
-                title = "稍后提醒",
+                title = t("common.snooze"),
                 checked = state.snoozeEnabled,
                 colors = colors,
                 onToggle = { viewModel.setSnooze(it) }
             )
 
             ToggleRow(
-                title = "振动",
+                title = t("edit.vibrate"),
                 checked = state.vibrate,
                 colors = colors,
                 onToggle = { viewModel.setVibrate(it) }
@@ -344,7 +341,7 @@ fun AddAlarmScreen(
                     .clickable { viewModel.save() },
                 contentAlignment = Alignment.Center
             ) {
-                Text("保存闹钟", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                Text(t("edit.saveButton"), fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
             }
         }
     }
@@ -404,11 +401,17 @@ private fun queryFileName(resolver: ContentResolver, uri: Uri): String? {
     }
 }
 
-// ---- 滚轮式时间选择器 ----
+// ---- 子组件 ----
 
-@OptIn(ExperimentalFoundationApi::class)
+/**
+ * 时间选择：上下滚动的小时 / 分钟轮，对齐鸿蒙端系统 TimePicker 的观感。
+ *
+ * 之前是「大数字 + 上下箭头」，一小时要连点 60 次，和鸿蒙版差得远。
+ * 这里用 LazyColumn + snapFling：松手自动吸到整格，停稳之后才回写 ViewModel，
+ * 拖动过程中不会一帧一帧地往上写。
+ */
 @Composable
-private fun WheelTimePicker(
+private fun TimePicker(
     hour: Int,
     minute: Int,
     enabled: Boolean,
@@ -416,192 +419,155 @@ private fun WheelTimePicker(
     onHourChange: (Int) -> Unit,
     onMinuteChange: (Int) -> Unit
 ) {
-    val haptic = LocalHapticFeedback.current
-    val toneGen = remember { ToneGenerator(AudioManager.STREAM_NOTIFICATION, 25) }
-
-    // 选中指示线颜色
-    val indicatorColor = colors.orange
-
-    Box(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
             .background(colors.bgCard)
-            .padding(vertical = 24.dp)
+            .padding(vertical = 10.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        // 中间选中指示线
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.Center)
-                .height(52.dp)
-                .background(indicatorColor.copy(alpha = 0.08f))
+        Wheel(
+            count = 24,
+            selected = hour,
+            enabled = enabled,
+            colors = colors,
+            onChange = onHourChange
         )
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // 小时滚轮
-            WheelColumn(
-                value = hour,
-                range = 0..23,
-                format = { "%02d".format(it) },
-                enabled = enabled,
-                colors = colors,
-                toneGen = toneGen,
-                haptic = haptic,
-                onValueChange = onHourChange
-            )
-
-            Spacer(Modifier.width(20.dp))
-            Text(
-                ":",
-                fontSize = 48.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = if (enabled) colors.textWhite else colors.textGray
-            )
-            Spacer(Modifier.width(20.dp))
-
-            // 分钟滚轮
-            WheelColumn(
-                value = minute,
-                range = 0..59,
-                format = { "%02d".format(it) },
-                enabled = enabled,
-                colors = colors,
-                toneGen = toneGen,
-                haptic = haptic,
-                onValueChange = onMinuteChange
-            )
-        }
+        Text(
+            text = ":",
+            fontSize = 26.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = if (enabled) colors.textWhite else colors.textGray,
+            modifier = Modifier.padding(horizontal = 2.dp)
+        )
+        Wheel(
+            count = 60,
+            selected = minute,
+            enabled = enabled,
+            colors = colors,
+            onChange = onMinuteChange
+        )
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+/** 一格的固定高度；滚动吸附、选中判定都基于它 */
+private val WheelItemHeight = 44.dp
+
+/** 一屏露几格：中间选中，上下各两格，边缘淡出 */
+private const val WheelVisibleCount = 5
+
+/**
+ * 循环倍数。
+ *
+ * 把 [0,count) 这一份首尾相接地复制很多份 —— 滚过 23 自然接上 0，往上滚也一样，
+ * 不需要在滚到头时偷偷跳位置（跳那一下肉眼能看见闪）。
+ * LazyColumn 只渲染可见的几格，几万项没有成本。
+ */
+private const val WheelLoops = 1000
+
+/** 环形距离：23 和 0 在钟面上是挨着的，别按直线距离淡出 */
+private fun ringDistance(a: Int, b: Int, count: Int): Int {
+    val d = kotlin.math.abs(a - b)
+    return minOf(d, count - d)
+}
+
+/**
+ * 单个滚轮（上下无限循环）。
+ *
+ * 三个细节：
+ *  - contentPadding 由格高算出来（上下各 (visible-1)/2 格），任意一项都能滚到正中；
+ *  - 停留值靠 firstVisibleItemIndex + 半个格高的偏移判断，停稳后才回报，
+ *    避免拖动过程中反复触发 onChange；
+ *  - 显示的是「虚拟序号 % count」，所以列表内部序号很大，外面拿到的永远是 0..count-1。
+ */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-private fun WheelColumn(
-    value: Int,
-    range: IntRange,
-    format: (Int) -> String,
+private fun Wheel(
+    count: Int,
+    selected: Int,
     enabled: Boolean,
     colors: com.sunrise.alarm.ui.theme.ExtendedColors,
-    toneGen: ToneGenerator,
-    haptic: androidx.compose.ui.hapticfeedback.HapticFeedback,
-    onValueChange: (Int) -> Unit
+    onChange: (Int) -> Unit
 ) {
-    val itemCount = range.count()
-    val rangeList = remember(range) { range.toList() }
-    val repeatMultiplier = 500 // 重复次数实现"无限"循环
-    val totalItems = itemCount * repeatMultiplier
-    val middleBase = (repeatMultiplier / 2) * itemCount
-    val valueIndex = rangeList.indexOf(value).coerceAtLeast(0)
-    val initialIndex = middleBase + valueIndex
+    val itemHeightPx = with(LocalDensity.current) { WheelItemHeight.toPx() }
+    val total = count * WheelLoops
+    // 从中间那一份开始，往上往下都留足余量
+    val startIndex = count * (WheelLoops / 2) + selected.coerceIn(0, count - 1)
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = startIndex)
+    val currentSelected by rememberUpdatedState(selected)
 
-    val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
-    val snapBehavior = rememberSnapFlingBehavior(lazyListState = listState)
-
-    // 当前视口中心的 item 索引（实时跟踪，用于高亮）
-    val centerItemIndex = remember { mutableIntStateOf(-1) }
-    val currentValue = remember { mutableIntStateOf(value) }
-
-    // 实时跟踪视口中心 item（仅用于视觉高亮）
-    LaunchedEffect(listState) {
-        snapshotFlow {
-            val info = listState.layoutInfo
-            val viewportCenter = info.viewportStartOffset + info.viewportSize.height / 2
-            info.visibleItemsInfo.minByOrNull {
-                kotlin.math.abs(it.offset + it.size / 2 - viewportCenter)
-            }?.index
-        }.distinctUntilChanged().collect { idx ->
-            if (idx != null) centerItemIndex.intValue = idx
-        }
-    }
-
-    // 只在滚动真正停止后才同步值到 ViewModel（解决 isScrollInProgress + snapFlingBehavior 时序竞态）
-    LaunchedEffect(listState) {
-        var wasScrolling = false
-        snapshotFlow { listState.isScrollInProgress }
-            .collect { isScrolling ->
-                // 仅当从滚动→停止过渡时计算值
-                if (!isScrolling && wasScrolling) {
-                    // 等一帧让 layout 完全落位
-                    delay(50)
-                    val info = listState.layoutInfo
-                    val viewportCenter = info.viewportStartOffset + info.viewportSize.height / 2
-                    val centerItem = info.visibleItemsInfo.minByOrNull {
-                        kotlin.math.abs(it.offset + it.size / 2 - viewportCenter)
-                    }
-                    centerItem?.let { item ->
-                        val newValue = rangeList[item.index % itemCount]
-                        if (newValue != currentValue.intValue) {
-                            currentValue.intValue = newValue
-                            onValueChange(newValue)
-                            try { toneGen.startTone(ToneGenerator.TONE_PROP_NACK, 30) } catch (_: Exception) {}
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        }
-                    }
-                }
-                wasScrolling = isScrolling
-            }
-    }
-
-    // 编辑模式：ViewModel 异步加载数据后 value 会变化，此时需滚动到正确位置
-    LaunchedEffect(value) {
-        if (!listState.isScrollInProgress) {
-            val info = listState.layoutInfo
-            val viewportCenter = info.viewportStartOffset + info.viewportSize.height / 2
-            val centerItem = info.visibleItemsInfo.minByOrNull {
-                kotlin.math.abs(it.offset + it.size / 2 - viewportCenter)
-            }
-            val currentCenterValue = centerItem?.let { rangeList[it.index % itemCount] } ?: -1
-            if (currentCenterValue != value) {
-                val targetIndex = middleBase + rangeList.indexOf(value).coerceAtLeast(0)
-                listState.scrollToItem(targetIndex)
-                currentValue.intValue = value
-            }
-        }
-    }
-
-    // 选中和非选中颜色
-    val selectedColor = if (enabled) colors.textWhite else colors.textGray
-    val unselectedColor = if (enabled) colors.textGray.copy(alpha = 0.4f) else Color(0xFF3A3A3D)
-
-    val itemHeight = 52.dp
-    val visibleItems = 5
-
-    LazyColumn(
-        state = listState,
+    Box(
         modifier = Modifier
-            .width(80.dp)
-            .height(itemHeight * visibleItems),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = itemHeight * 2),
-        flingBehavior = snapBehavior,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        userScrollEnabled = enabled
+            .width(76.dp)
+            .height(WheelItemHeight * WheelVisibleCount),
+        contentAlignment = Alignment.Center
     ) {
-        items(totalItems, key = { "wh_$it" }) { index ->
-            val actualValue = rangeList[index % itemCount]
-            val isSelected = index == centerItemIndex.intValue
+        // 中间那条选中高亮带
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(WheelItemHeight)
+                .clip(RoundedCornerShape(10.dp))
+                .background(if (enabled) colors.bgCardHover else Color.Transparent)
+        )
 
-            Box(
-                modifier = Modifier
-                    .height(itemHeight)
-                    .width(80.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    format(actualValue),
-                    fontSize = if (isSelected) 36.sp else 18.sp,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                    color = if (isSelected) selectedColor else unselectedColor,
-                    textAlign = TextAlign.Center
-                )
+        LazyColumn(
+            state = listState,
+            flingBehavior = rememberSnapFlingBehavior(lazyListState = listState),
+            userScrollEnabled = enabled,
+            contentPadding = PaddingValues(
+                vertical = WheelItemHeight * ((WheelVisibleCount - 1) / 2)
+            ),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            items(total) { index ->
+                val value = index % count
+                val distance = ringDistance(value, currentSelected, count)
+                Box(
+                    modifier = Modifier.height(WheelItemHeight),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = String.format("%02d", value),
+                        fontSize = if (distance == 0) 30.sp else 20.sp,
+                        fontWeight = if (distance == 0) FontWeight.SemiBold else FontWeight.Normal,
+                        color = when {
+                            !enabled -> colors.textGray.copy(alpha = 0.5f)
+                            distance == 0 -> colors.textWhite
+                            distance == 1 -> colors.textGray
+                            else -> colors.textGray.copy(alpha = 0.4f)
+                        }
+                    )
+                }
             }
         }
+    }
+
+    // 停稳后把居中那一格回报出去（换算回 0..count-1）
+    LaunchedEffect(listState, count) {
+        snapshotFlow { listState.isScrollInProgress }
+            .collect { scrolling ->
+                if (scrolling) return@collect
+                val raw = listState.firstVisibleItemIndex +
+                    if (listState.firstVisibleItemScrollOffset > itemHeightPx / 2f) 1 else 0
+                val picked = raw.coerceIn(0, total - 1) % count
+                if (picked != currentSelected) onChange(picked)
+            }
+    }
+
+    // 外部改值（切换类型重置时间、载入已有闹钟）时把轮子滚过去。
+    // 走最近的那一圈，别让轮子倒着跑一大截。
+    LaunchedEffect(selected) {
+        if (listState.isScrollInProgress) return@LaunchedEffect
+        val cur = listState.firstVisibleItemIndex
+        if (cur % count == selected) return@LaunchedEffect
+        var target = cur - (cur % count) + selected
+        if (target > cur + count / 2) target -= count
+        if (target < cur - count / 2) target += count
+        listState.animateScrollToItem(target)
     }
 }
 
@@ -617,9 +583,9 @@ private fun TypeSelector(
     onSelect: (AlarmType) -> Unit
 ) {
     val options = listOf(
-        AlarmType.REGULAR to "普通闹钟",
-        AlarmType.SUNRISE to "日出",
-        AlarmType.SUNSET to "日落"
+        AlarmType.REGULAR to t("edit.typeRegular"),
+        AlarmType.SUNRISE to t("common.sunrise"),
+        AlarmType.SUNSET to t("common.sunset")
     )
     Row(
         modifier = Modifier
@@ -669,7 +635,7 @@ private fun OffsetRow(
                 .clickable { onBefore() }
                 .padding(horizontal = 16.dp, vertical = 10.dp)
         ) {
-            Text("提前", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = colors.textWhite)
+            Text(t("edit.advance"), fontSize = 13.sp, fontWeight = FontWeight.Medium, color = colors.textWhite)
         }
         Text(
             offsetText(offsetMinutes),
@@ -684,7 +650,7 @@ private fun OffsetRow(
                 .clickable { onAfter() }
                 .padding(horizontal = 16.dp, vertical = 10.dp)
         ) {
-            Text("延后", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = colors.textWhite)
+            Text(t("edit.delay"), fontSize = 13.sp, fontWeight = FontWeight.Medium, color = colors.textWhite)
         }
     }
 }
@@ -692,9 +658,9 @@ private fun OffsetRow(
 private fun offsetText(min: Int): String {
     val abs = kotlin.math.abs(min)
     return when {
-        min == 0 -> "0分钟"
-        min > 0 -> "后${abs}分钟"
-        else -> "前${abs}分钟"
+        min == 0 -> t("edit.offsetZero")
+        min > 0 -> t("edit.offsetAfter", abs)
+        else -> t("edit.offsetBefore", abs)
     }
 }
 
@@ -704,7 +670,13 @@ private fun RepeatDays(
     colors: com.sunrise.alarm.ui.theme.ExtendedColors,
     onToggle: (Int) -> Unit
 ) {
-    val dayLabels = listOf("一", "二", "三", "四", "五", "六", "日")
+    // 星期圆点直径只有 40dp，塞不下「周一」/「Mon」，按语言给短名：
+    // 中文取「一二三…」，英文取首字母（T 会出现两次，从位置能分辨周二/周四，和系统日历一致）
+    val dayLabels = if (Lang.isZh()) {
+        listOf("一", "二", "三", "四", "五", "六", "日")
+    } else {
+        listOf("M", "T", "W", "T", "F", "S", "S")
+    }
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
@@ -741,7 +713,7 @@ private fun LabelInput(
         contentAlignment = Alignment.CenterStart
     ) {
         if (text.isEmpty()) {
-            Text("给闹钟起个名字", fontSize = 15.sp, color = colors.textGray)
+            Text(t("edit.labelPlaceholder"), fontSize = 15.sp, color = colors.textGray)
         }
         androidx.compose.foundation.text.BasicTextField(
             value = text,

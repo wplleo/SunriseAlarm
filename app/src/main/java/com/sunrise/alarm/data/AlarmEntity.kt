@@ -2,6 +2,7 @@ package com.sunrise.alarm.data
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.sunrise.alarm.common.t
 
 /**
  * 闹钟类型
@@ -38,8 +39,6 @@ data class AlarmEntity(
      * dayOfWeek: 1=周一 ... 7=周日
      */
     fun isEnabledOnDay(dayOfWeek: Int): Boolean {
-        // repeatDays == 0 表示"仅一次"，应在今天触发（调度循环会自行判断时间是否已过）
-        if (repeatDays == 0) return true
         val bit = 1 shl (dayOfWeek - 1)
         return (repeatDays and bit) != 0
     }
@@ -56,19 +55,25 @@ data class AlarmEntity(
 
     /**
      * 重复描述文本
+     *
+     * 走 t() 取词而不是写死中文：这段文字直接显示在首页闹钟卡片上，
+     * 英文界面下漏了它就等于没做多语言。
      */
     val repeatText: String
         get() = when {
-            isEveryDay -> "每天"
-            isWeekdays -> "周一至周五"
-            repeatDays == 0 -> "仅一次"
+            isEveryDay -> t("alarm.repeatEveryDay")
+            isWeekdays -> t("alarm.repeatWeekdays")
+            repeatDays == 0 -> t("alarm.repeatOnce")
             else -> {
+                val dayKeys = listOf(
+                    "alarm.dayMon", "alarm.dayTue", "alarm.dayWed",
+                    "alarm.dayThu", "alarm.dayFri", "alarm.daySat", "alarm.daySun"
+                )
                 val names = mutableListOf<String>()
-                val dayNames = listOf("一", "二", "三", "四", "五", "六", "日")
                 for (i in 0..6) {
-                    if ((repeatDays shr i) and 1 == 1) names.add("周${dayNames[i]}")
+                    if ((repeatDays shr i) and 1 == 1) names.add(t(dayKeys[i]))
                 }
-                names.joinToString("、")
+                names.joinToString(t("alarm.daySeparator"))
             }
         }
 }

@@ -6,9 +6,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.sunrise.alarm.SunriseAlarmApp
+import com.sunrise.alarm.common.t
 import com.sunrise.alarm.data.AlarmEntity
 import com.sunrise.alarm.data.AlarmType
 import com.sunrise.alarm.data.LocationInfo
+import com.sunrise.alarm.data.PrivacyConsent
 import com.sunrise.alarm.util.SunApiService
 import com.sunrise.alarm.util.SunriseSunsetCalculator
 import kotlinx.coroutines.Dispatchers
@@ -30,7 +32,8 @@ data class HomeUiState(
     val nextAlarmText: String = "",
     val isLoading: Boolean = true,
     val isLocating: Boolean = false,
-    val timeSource: String = ""  // "天文台在线" or "离线计算"
+    /** 数据来源；空串表示还没有任何数据 */
+    val timeSource: String = ""
 )
 
 class HomeViewModel(
@@ -48,7 +51,11 @@ class HomeViewModel(
     init {
         observeAlarms()
         observeLocationChanges()
-        refreshLocation()
+        // 未同意隐私政策前不碰定位 —— 弹窗盖在页面上时首页其实已经建好了，
+        // 不拦这一下就等于没同意就先把位置拿了
+        if (PrivacyConsent.isAgreed()) {
+            refreshLocation()
+        }
     }
 
     /**
@@ -78,7 +85,7 @@ class HomeViewModel(
                     sunsetTime = sunInfo?.second ?: "--:--",
                     daylightText = sunInfo?.fourth ?: "--",
                     sunProgress = sunInfo?.fifth ?: 0f,
-                    timeSource = if (sunInfo != null) "离线计算" else ""
+                    timeSource = if (sunInfo != null) t("home.timeSourceOffline") else ""
                 )
             }
         }
@@ -132,7 +139,7 @@ class HomeViewModel(
                 sunsetTime = sunInfo.second,
                 daylightText = sunInfo.fourth,
                 sunProgress = sunInfo.fifth,
-                timeSource = "离线计算"
+                timeSource = t("home.timeSourceOffline")
             )
         }
 
@@ -161,7 +168,7 @@ class HomeViewModel(
                     sunsetTime = sunsetStr,
                     daylightText = daylightStr,
                     sunProgress = progress,
-                    timeSource = "天文台在线"
+                    timeSource = t("home.timeSourceOnline")
                 )
             }
         }
@@ -264,19 +271,18 @@ class HomeViewModel(
         })
 
         val typeStr = when (nearestAlarm.type) {
-            AlarmType.REGULAR -> "普通闹钟"
-            AlarmType.SUNRISE -> "日出闹钟"
-            AlarmType.SUNSET -> "日落闹钟"
+            AlarmType.REGULAR -> t("home.alarmTypeRegular")
+            AlarmType.SUNRISE -> t("home.alarmTypeSunrise")
+            AlarmType.SUNSET -> t("home.alarmTypeSunset")
         }
 
         val dayStr = if (diffHours < 24) {
-            if (diffHours < 1) "${diffMins}分钟后" else "还有${diffHours}小时${diffMins}分"
+            if (diffHours < 1) t("home.inMinutes", diffMins) else t("home.remainTime", diffHours, diffMins)
         } else {
-            val days = diffHours / 24
-            "还有${days}天"
+            t("home.remainDays", diffHours / 24)
         }
 
-        return "${timeStr} · ${typeStr} · ${dayStr}"
+        return t("home.nextAlarmDetail", timeStr, typeStr, dayStr)
     }
 
     fun toggleAlarm(alarm: AlarmEntity, enabled: Boolean) {

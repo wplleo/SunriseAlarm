@@ -11,8 +11,6 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
-    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <!-- 位置相关 -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
@@ -46,32 +44,20 @@
             </intent-filter>
         </activity>
 
-        <!-- 闹钟响铃全屏界面（锁屏上方显示） -->
-        <activity
-            android:name=".ui.ring.AlarmRingActivity"
-            android:exported="false"
-            android:theme="@style/Theme.SunriseAlarm"
-            android:showWhenLocked="true"
-            android:turnScreenOn="true"
-            android:launchMode="singleInstance" />
-
         <!-- 闹钟触发广播接收器 -->
         <receiver
             android:name=".service.AlarmReceiver"
             android:exported="false"
             android:enabled="true" />
 
-        <!-- 开机重启/应用更新/时区时间变更后重新注册闹钟 -->
+        <!-- 开机重启后重新注册闹钟 -->
         <receiver
             android:name=".service.BootReceiver"
             android:exported="true"
             android:enabled="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
-                <action android:name="android.intent.action.TIME_SET" />
-                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
             </intent-filter>
         </receiver>
 

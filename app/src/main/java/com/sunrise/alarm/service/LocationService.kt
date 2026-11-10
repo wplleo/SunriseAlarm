@@ -17,6 +17,8 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import com.sunrise.alarm.common.Lang
+import com.sunrise.alarm.common.t
 import com.sunrise.alarm.data.LocationInfo
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
@@ -165,7 +167,7 @@ class LocationService(private val context: Context) {
     private suspend fun buildLocationInfo(loc: Location): LocationInfo {
         val name = reverseGeocode(loc.latitude, loc.longitude)
         return LocationInfo(
-            name = name ?: "当前位置",
+            name = name ?: t("location.current"),
             latitude = loc.latitude,
             longitude = loc.longitude,
             isAutoLocated = true,
@@ -188,7 +190,7 @@ class LocationService(private val context: Context) {
 
     private suspend fun geocoderReverseLookup(lat: Double, lng: Double): String? {
         return try {
-            val geocoder = Geocoder(context, Locale.getDefault())
+            val geocoder = Geocoder(context, Lang.geocodeLocale())
             val addresses = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 // API 33+ 异步回调 —— 必须用 suspendCancellableCoroutine 等待
                 withTimeoutOrNull(5000L) {
@@ -254,7 +256,7 @@ class LocationService(private val context: Context) {
 
     private suspend fun geocoderForwardLookup(query: String): List<LocationInfo> {
         return try {
-            val geocoder = Geocoder(context, Locale.getDefault())
+            val geocoder = Geocoder(context, Lang.geocodeLocale())
             val addresses = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 // API 33+ 异步回调
                 withTimeoutOrNull(5000L) {
@@ -294,7 +296,7 @@ class LocationService(private val context: Context) {
 
     private suspend fun nominatimReverseLookup(lat: Double, lng: Double): String? {
         return try {
-            val urlStr = "https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lng&zoom=10&accept-language=zh"
+            val urlStr = "https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lng&zoom=10&accept-language=${Lang.geocodeTag()}"
             val json = httpGet(urlStr) ?: return null
             // 简单解析 JSON
             val cityName = extractNominatimName(json)
@@ -308,7 +310,7 @@ class LocationService(private val context: Context) {
     private suspend fun nominatimForwardLookup(query: String): List<LocationInfo> {
         return try {
             val encoded = URLEncoder.encode(query, "UTF-8")
-            val urlStr = "https://nominatim.openstreetmap.org/search?q=$encoded&format=json&limit=5&accept-language=zh-CN&addressdetails=1"
+            val urlStr = "https://nominatim.openstreetmap.org/search?q=$encoded&format=json&limit=5&accept-language=${Lang.geocodeTag()}&addressdetails=1"
             val json = httpGet(urlStr) ?: return emptyList()
             parseNominatimSearchResults(json)
         } catch (e: Exception) {
