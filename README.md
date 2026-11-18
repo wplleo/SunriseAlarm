@@ -9,9 +9,9 @@
 
 两个平台的包名同为 `com.sunrise.alarm`，界面、文案、颜色、版本号都对齐。
 
-| 首页 | 新建闹钟（循环滚轮选时） |
-|:---:|:---:|
-| ![首页](docs/screenshots/home-dark.png) | ![新建闹钟](docs/screenshots/add-alarm.png) |
+| 首页 | 新建闹钟（循环滚轮选时） | 设置 | English |
+|:---:|:---:|:---:|:---:|
+| ![首页](docs/screenshots/home-dark.png) | ![新建闹钟](docs/screenshots/add-alarm.png) | ![设置](docs/screenshots/settings.png) | ![English](docs/screenshots/home-en.png) |
 
 以下为 **Android 版**文档。
 
